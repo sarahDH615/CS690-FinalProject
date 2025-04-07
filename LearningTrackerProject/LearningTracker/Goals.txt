@@ -1,0 +1,3 @@
+ID|||Name|||Description|||Status|||parentSkillID
+0|||Backstitch|||Learning how to do a backstitch|||To-Do|||1
+1|||Buying a French press|||Buying a French press coffee machine for making good coffee :)|||To-Do|||0

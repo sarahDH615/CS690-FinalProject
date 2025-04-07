@@ -73,7 +73,11 @@ class Program
             newSkill.saveToDataStore();
         }
         // if goal, go to goal addLearning()
-
+        if(learningType == "Goal"){
+            Goal newGoal = new Goal();
+            newGoal.addLearning();
+            newGoal.saveToDataStore();
+        }
         // if milestone, go to milestone addLearning()
 
         // Dictionary<string, string> fileDictionary = new Dictionary<string, string>(){
@@ -209,7 +213,14 @@ public class LearningsManager{
         databaseConnection.saveRecord(learningFileName, record);
     }
 
-    
+    public Dictionary<string, string> getLearningIdsAndNames(List<string> learnings){
+        Dictionary<string, string> idsAndNamesDict = new Dictionary<string, string>();
+        foreach(string learning in learnings){
+            string[] learningSplit = learning.Split("|||");
+            idsAndNamesDict[learningSplit[1]] = learningSplit[0]; // name: id
+        }
+        return idsAndNamesDict;
+    }
 
     // List<string> learningNames = new List<string>();
 
@@ -228,13 +239,9 @@ public class LearningsManager{
 public class SkillsManager : LearningsManager {
     
     public string skillsFileName = "Skills.txt";
-    // headers are the same as in base class
-    // public SkillsManager(){
-    //     this.headers = headers;
-    //     this.skillsFileName = skillsFileName;
-    // }
+    // List<string> existingSkills = getSkills();
 
-    List<string> getSkills(){
+    public List<string> getSkills(){
         return getLearnings(this.skillsFileName, this.headers);
     }
 
@@ -253,14 +260,43 @@ public class SkillsManager : LearningsManager {
 
 public class GoalsManager : LearningsManager {
     // update headers variable
+    public string goalsFileName = "Goals.txt";
+    // List<string> existingGoals = getGoals();
     public GoalsManager(){
-        // List<string> headers = base.headers.Add("parentSkillID");
         headers.Add("parentSkillID");
     }
 
     List<string> getGoals(){
-        string goalsFileName = "Goals.txt";
-        return getLearnings(goalsFileName, headers);
+        return getLearnings(this.goalsFileName, this.headers);
+    }
+
+    public string getParentSkill(){
+        SkillsManager skillsManager = new SkillsManager();
+        List<string> existingSkills = skillsManager.getSkills();
+        Dictionary<string, string> skillsInformation = getLearningIdsAndNames(existingSkills);
+        string skillName = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Choose completion status:")
+                .PageSize(10)
+                .MoreChoicesText("")
+                .AddChoices(skillsInformation.Keys));
+                // .AddChoices(new[] {
+
+                // }));
+        return skillsInformation[skillName];
+    }
+
+    public void saveGoal(string name, string description, string status){
+        if(name != "" && description != "" && status != ""){
+            List<string> existingGoals = getGoals();
+            string goalId = existingGoals.Count.ToString();
+            string parentSkillId = getParentSkill();
+            string goalRecord = goalId +"|||"+ name +"|||"+ description +"|||"+ status +"|||"+ parentSkillId;
+            saveLearning(this.goalsFileName, goalRecord);
+        }
+        else{
+            throw new InvalidOperationException("Required values are not present.");
+        }
     }
 }
 
@@ -326,6 +362,16 @@ public class Skill : Learning{
     // }
 }
 
+public class Goal : Learning{
+    
+    public void saveToDataStore(){
+        GoalsManager goalManager = new GoalsManager();
+        goalManager.saveGoal(this.name, this.description, this.status);
+    }
+    // public string getName(){
+        
+    // }
+}
 // public class Goal
 // {}
 
