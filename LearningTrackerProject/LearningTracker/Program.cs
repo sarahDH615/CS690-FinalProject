@@ -73,65 +73,17 @@ class Program
             newSkill.saveToDataStore();
         }
         // if goal, go to goal addLearning()
-        if(learningType == "Goal"){
+        else if(learningType == "Goal"){
             Goal newGoal = new Goal();
             newGoal.addLearning();
             newGoal.saveToDataStore();
         }
         // if milestone, go to milestone addLearning()
-
-        // Dictionary<string, string> fileDictionary = new Dictionary<string, string>(){
-        //     ["Skill"] = "Skills.txt",
-        //     ["Goal"] = "Goals.txt",
-        //     ["Milestone"] = "Milestones.txt",
-        // };
-
-        // string[] requiredPromptValues = new string[2];
-
-        // string[] requiredTextEntryFields = {"Name", "Description"};
-        // string[] requiredTextEntryValues = new string[requiredTextEntryFields.Length];
-
-        // for(int i=0; i < requiredTextEntryFields.Length; i++){
-        //     string requiredField = requiredTextEntryFields[i];
-        //     string requiredValue = AnsiConsole.Prompt(
-        //         new TextPrompt<string>("Enter "+requiredField+": ")); // empty input is not allowed, so something must be entered
-            
-        //     if( requiredValue == "EXIT" || requiredValue == "BACK" ){
-        //         exitFunc = requiredValue;
-        //         break;
-        //     }
-        //     requiredTextEntryValues[i] = requiredValue;
-            
-        // }
-
-        // // add status
-        // string status = AnsiConsole.Prompt(
-        //     new SelectionPrompt<string>()
-        //         .Title("Choose completion status:")
-        //         .PageSize(10)
-        //         .MoreChoicesText("")
-        //         .AddChoices(new[] {
-        //             "To-Do", "Completed",
-        //         }));
-        // requiredPromptValues[0] = status;
-
-        // learning type - should EXIT and BACK be allowed here?
-        // string learningType = AnsiConsole.Prompt(
-        //     new SelectionPrompt<string>()
-        //         .Title("Choose learning type:")
-        //         .PageSize(10)
-        //         .MoreChoicesText("")
-        //         .AddChoices(new[] {
-        //             "Skill", "Goal", "Milestone",
-        //         }));
-        // requiredPromptValues[1] = learningType;
-        // TO DO: if learning type is not skill, send to skill attach function
-
-        // combine all values 
-        // string[] recordValues = requiredTextEntryValues.Concat(requiredPromptValues).ToArray();
-        // // save to file
-        // string record = string.Join(", ", recordValues);
-        // File.AppendAllText(fileDictionary[learningType], record);
+        else if(learningType == "Milestone"){
+            Milestone newMilestone = new Milestone();
+            newMilestone.addLearning();
+            newMilestone.saveToDataStore();
+        }
 
         return exitFunc;
 
@@ -222,18 +174,26 @@ public class LearningsManager{
         return idsAndNamesDict;
     }
 
-    // List<string> learningNames = new List<string>();
-
-    // List<string> getLearningNames(List<Learning> learnings){
-    //     List<string> learningNames = new List<string>();
-
-    //     foreach (Learning learning in learnings)
-    //     {
-    //         learningNames.Add(Learning.name);
-    //     }
-
-    //     return learningNames;
-    // }
+    public string getParentLearning(string parentLearningType){
+        List<string> existingParentLearnings = new List<string>();
+        if(parentLearningType == "goal"){
+            GoalsManager parentLearningManager = new GoalsManager();
+            existingParentLearnings = parentLearningManager.getGoals();
+        }
+        else if(parentLearningType == "skill"){
+            SkillsManager parentLearningManager = new SkillsManager();
+            existingParentLearnings = parentLearningManager.getSkills();
+        }
+        
+        Dictionary<string, string> learningsInfo = getLearningIdsAndNames(existingParentLearnings);
+        string learningName = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title($"Choose parent {parentLearningType}: ")
+                .PageSize(10)
+                .MoreChoicesText("")
+                .AddChoices(learningsInfo.Keys));
+        return learningsInfo[learningName];
+    }
 }
 
 public class SkillsManager : LearningsManager {
@@ -266,7 +226,7 @@ public class GoalsManager : LearningsManager {
         headers.Add("parentSkillID");
     }
 
-    List<string> getGoals(){
+    public List<string> getGoals(){
         return getLearnings(this.goalsFileName, this.headers);
     }
 
@@ -301,12 +261,31 @@ public class GoalsManager : LearningsManager {
 }
 
 public class MilestonesManager : LearningsManager{
+    // update headers variable
+    public string milestonesFileName = "Milestones.txt";
+    // List<string> existingGoals = getGoals();
     public MilestonesManager(){
         headers.Add("parentGoalID");
     }
     List<string> getMilestones(){
-        string milestonesFileName = "Milestones.txt";
-        return getLearnings(milestonesFileName, headers);
+        return getLearnings(this.milestonesFileName, this.headers);
+    }
+
+    public string getParentGoal(){
+        return getParentLearning("goal");
+    }
+
+    public void saveMilestone(string name, string description, string status){
+        if(name != "" && description != "" && status != ""){
+            List<string> existingMilestones = getMilestones();
+            string milestoneId = existingMilestones.Count.ToString();
+            string parentGoalID = getParentGoal();
+            string milestoneRecord = milestoneId +"|||"+ name +"|||"+ description +"|||"+ status +"|||"+ parentGoalID;
+            saveLearning(this.milestonesFileName, milestoneRecord);
+        }
+        else{
+            throw new InvalidOperationException("Required values are not present.");
+        }
     }
 }
 
@@ -368,12 +347,15 @@ public class Goal : Learning{
         GoalsManager goalManager = new GoalsManager();
         goalManager.saveGoal(this.name, this.description, this.status);
     }
-    // public string getName(){
-        
-    // }
 }
-// public class Goal
-// {}
+
+public class Milestone : Learning{
+    
+    public void saveToDataStore(){
+        MilestonesManager milestoneManager = new MilestonesManager();
+        milestoneManager.saveMilestone(this.name, this.description, this.status);
+    }
+}
 
 // public class Milestone
 // {}
