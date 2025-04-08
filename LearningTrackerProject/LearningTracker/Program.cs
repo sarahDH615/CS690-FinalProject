@@ -6,119 +6,306 @@ class Program
 {
     static void Main(string[] args)
     {
-        // while loop to keep asking for activity
+        UserUI userUi = new UserUI();
+        userUi.EnterStartMenu();
+    }
+}
 
-        string activity;  // warning CS8600: Converting null literal or possible null value to non-nullable type.
+public class LearningsManager{
+    
+    protected List<string> headers = new List<string>{"ID", "Name", "Description", "Status"};
+    
+    DataManager dataManager = new DataManager();
 
-        do{
-            activity = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("Choose activity, or EXIT to exit LearningTracker:")
-                    .PageSize(10)
-                    .MoreChoicesText("")
-                    .AddChoices(new[] {
-                        "Progress", "Notes", "Manage Learning", "EXIT",
-                    }));
-            // Console.WriteLine("You chose: "+activity);
+    public Dictionary<string, string> GetCommonMetadataFieldsTextEntry(){
+        Dictionary<string, string> metadataDictionary = new Dictionary<string, string>{
+            {"Name", ""},
+            {"Description", ""}
+        };
+        return metadataDictionary;
+    }
 
-            // pass result of child menu back to allow for EXIT if passed
-            if(activity == "Manage Learning"){
-                activity = ManageLearningMenu();
-            }
+    public Dictionary<string, List<string>> GetCommonMetadataFieldsSelection(){
+        Dictionary<string, List<string>> metadataDictionary = new Dictionary<string, List<string>>{
+            {"Status", new List<string>{"To-Do", "Completed"}}
+        };
+        return metadataDictionary;
+    }
+
+    public Dictionary<string, List<string>> GetLearningIdsAndNames(string learningType, string filterParentId = ""){
+        Dictionary<string, List<string>> learningIdAndNamesDict = new Dictionary<string, List<string>>{};
+        Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
+        List<string> learningIDs = new List<string>();
+        List<string> learningNames = new List<string>();
+        if(learningType == "Skill"){
+            learningDict = dataManager.FormatLearningsForScript(dataManager.Skills, dataManager.learningsHeadersDict[learningType]);
         }
-        while(activity != "EXIT");
+        else if(learningType == "Goal"){
+            learningDict = dataManager.FormatLearningsForScript(dataManager.Goals, dataManager.learningsHeadersDict[learningType]);
+        }
+        else if(learningType == "Milestone"){
+            learningDict = dataManager.FormatLearningsForScript(dataManager.Milestones, dataManager.learningsHeadersDict[learningType]);
+        }
+
+        foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
+            string key = kvp.Key;
+            Dictionary<string, string> value = kvp.Value;
+            if(filterParentId != ""){
+                if(value["parentID"] == filterParentId) {
+                    learningIDs.Add(key);
+                    learningNames.Add(value["Name"]);
+                }
+            }
+            else{
+                learningIDs.Add(key);
+                learningNames.Add(value["Name"]);
+            }
+
+        }
+        learningIdAndNamesDict["IDs"] = learningIDs;
+        learningIdAndNamesDict["Names"] = learningNames;
+
+        return learningIdAndNamesDict;        
+    }
+
+    public void SaveLearning(string learningType, Dictionary<string, string> learningMetadata){
+        dataManager.SaveLearning(learningType, learningMetadata);
+    }
+
+}
+
+public class UserUI{
+
+    LearningsManager learningManager = new LearningsManager();
+    NotesManager notesManager = new NotesManager();
+    ProgressManager progressManager = new ProgressManager();
+
+    public UserUI(){
 
     }
 
-    public static string ManageLearningMenu()
-    {
+
+    public void EnterStartMenu(){
+        string activity;  // warning CS8600: Converting null literal or possible null value to non-nullable type.
+
+        do{
+            List<string> activityTypes = new List<string>{"Progress", "Notes", "Manage Learning", "EXIT"};
+            activity = ChooseFromSelection("Choose activity, or EXIT to exit LearningTracker:", activityTypes);
+            
+            // pass result of child menu back to allow for EXIT if passed
+            if(activity == "Progress"){
+                activity = EnterProgressMenu();
+            }
+            else if(activity == "Notes"){
+                activity = EnterNotesMenu();
+            }
+            else if(activity == "Manage Learning"){
+                activity = EnterLearningsMenu();
+            }
+        }
+        while(activity != "EXIT");
+    }
+
+    public string ChooseFromSelection(string title, List<string> selectionList){
+        string response = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title(title)
+                .PageSize(10)
+                .MoreChoicesText("")
+                .AddChoices(selectionList));
+        return response;
+    }
+
+    public string GetTextFromUser(string fieldName){
+        string response = AnsiConsole.Prompt(
+                new TextPrompt<string>($"Enter {fieldName}: "));
+        return response;
+    }
+    
+    public string EnterProgressMenu(){
+        throw new NotImplementedException();
+    }
+
+    public string EnterNotesMenu(){
+        throw new NotImplementedException();
+    }
+
+    public string EnterLearningsMenu(){
         string action;
 
         do{
-            action = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("Choose action, or BACK to exit Manage Learning Menu, or EXIT to exit LearningTracker:")
-                    .PageSize(10)
-                    .MoreChoicesText("")
-                    .AddChoices(new[] {
-                        "View", "Add", "Edit", "Delete", "BACK", "EXIT",
-                    }));
-            // Console.WriteLine("You chose: "+action);
-
+            List<string> actionTypes = new List<string>{"View", "Add", "Edit", "Delete", "BACK", "EXIT"};
+            action = ChooseFromSelection("Choose action, or BACK to exit Manage Learning Menu, or EXIT to exit LearningTracker:", actionTypes);
+            
             // pass result of child menu back to allow for EXIT if passed
-            if(action == "Add"){
-                action = AddLearning();
-            }
-            else if(action == "View"){
+            if(action == "View"){
                 action = ViewLearning();
+            }
+            else if(action == "Add"){
+                action = AddLearning();
             }
         }
         // BACK will go back to the previous while loop; EXIT will exit the script entirely
         while(action != "EXIT" && action != "BACK"); 
 
         return action;
-
     }
 
-    public static string AddLearning()
-    {
-        string exitFunc = "";
-
-        // determine type of learrning
-        string learningType = chooseLearningType();
-        // if skill, go to skill addLearning()
-        if(learningType == "Skill"){
-            Skill newSkill = new Skill();
-            newSkill.addLearning();
-            newSkill.saveToDataStore();
-        }
-        // if goal, go to goal addLearning()
-        else if(learningType == "Goal"){
-            Goal newGoal = new Goal();
-            newGoal.addLearning();
-            newGoal.saveToDataStore();
-        }
-        // if milestone, go to milestone addLearning()
-        else if(learningType == "Milestone"){
-            Milestone newMilestone = new Milestone();
-            newMilestone.addLearning();
-            newMilestone.saveToDataStore();
-        }
-
-        return exitFunc;
-
-    }
-
-    public static string ViewLearning()
-    {
+    public string ViewLearning(){
         throw new NotImplementedException();
-
     }
 
-    public static string chooseLearningType(){
-        string learningType = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Choose learning type:")
-                .PageSize(10)
-                .MoreChoicesText("")
-                .AddChoices(new[] {
-                    "Skill", "Goal", "Milestone",
-                }));
-        return learningType;
+    public string AddLearning(){
+
+        string keepAdding;
+
+        do{
+            string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
+            Dictionary<string, string> metadataDict = learningManager.GetCommonMetadataFieldsTextEntry();
+            foreach(var field in metadataDict.Keys){
+                string value = GetTextFromUser(field);
+                metadataDict[field] = value;
+            }
+            Dictionary<string, List<string>> metadataDictSelection = learningManager.GetCommonMetadataFieldsSelection();
+            foreach(var field in metadataDictSelection.Keys){
+                string value = ChooseFromSelection($"Select {field}:", metadataDictSelection[field]);
+                metadataDict[field] = value;
+            }
+            if(learningType == "Goal" || learningType == "Milestone"){
+                string ancestorSkillId = LookupLearningByName("Skill");
+                if(learningType == "Goal"){
+                    metadataDict["parentID"] = ancestorSkillId;
+                }
+                else{
+                    string ancestorGoalId = LookupLearningByName("Goal", ancestorSkillId);
+                    metadataDict["parentID"] = ancestorGoalId;
+                }
+            }
+            learningManager.SaveLearning(learningType, metadataDict);
+            
+            keepAdding = ChooseFromSelection("Select Add More to continue adding learnings, or BACK to exit Add Learning Menu, or EXIT to exit LearningTracker:", new List<string>{"Add More", "BACK", "EXIT"});
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(keepAdding != "EXIT" && keepAdding != "BACK"); 
+
+        return keepAdding;
+    }
+
+    public string LookupLearningByName(string learningType, string filterId = ""){
+        Dictionary<string, List<string>> learningInfo = learningManager.GetLearningIdsAndNames(learningType, filterId);
+        if(learningInfo["Names"].Count == 0){
+            Console.WriteLine($"No related {learningType}s");
+            // TO DO: allow re-entry
+            return ""
+        }
+        string ancestorName = ChooseFromSelection($"Choose {learningType} name:", learningInfo["Names"]);
+        int index = learningInfo["Names"].IndexOf(ancestorName);
+        string learningId = learningInfo["IDs"][index];
+        return learningId; 
+    }
+
+    public string EditLearning(){
+        throw new NotImplementedException();
+    }
+
+    public string DeleteLearning(){
+        throw new NotImplementedException();
+    }
+}
+
+public class NotesManager{}
+
+public class ProgressManager{}
+
+public class DataManager{
+    public Dictionary<string, string> learningsFilenameDict = new Dictionary<string, string>{
+        {"Skill", "Skills.txt"},
+        {"Goal", "Goals.txt"},
+        {"Milestone", "Milestones.txt"}
+    };
+    public Dictionary<string, List<string>> learningsHeadersDict = new Dictionary<string, List<string>>{
+        {"Skill", new List<string>{"ID", "Name", "Description", "Status"}},
+        {"Goal", new List<string>{"ID", "Name", "Description", "Status", "parentID"}},
+        {"Milestone", new List<string>{"ID", "Name", "Description", "Status", "parentID"}}
+    };
+    DataIO dataIO = new DataIO();
+    public List<string> Skills = new List<string>();
+    public List<string> Goals = new List<string>();
+    public List<string> Milestones = new List<string>();
+
+    public DataManager(){
+        Skills = dataIO.GetOrCreateFile(learningsFilenameDict["Skill"], learningsHeadersDict["Skill"]);
+        Goals = dataIO.GetOrCreateFile(learningsFilenameDict["Goal"], learningsHeadersDict["Goal"]);
+        Milestones = dataIO.GetOrCreateFile(learningsFilenameDict["Milestone"], learningsHeadersDict["Milestone"]);
+    }
+
+    public Dictionary<string, Dictionary<string, string>> GetLearning(string learningType){
+        List<string> learningsList = dataIO.GetOrCreateFile(learningsFilenameDict[learningType], learningsHeadersDict[learningType]);
+        return FormatLearningsForScript(learningsList, learningsHeadersDict[learningType]);
+    }
+
+    public string GenerateLearningID(string learningType){
+        int count = 0;
+        if(learningType == "Skill"){
+            count = Skills.Count + 1;
+        }
+        else if(learningType == "Goal"){
+            count = Goals.Count + 1;
+        }
+        else if(learningType == "Milestone"){
+            count = Milestones.Count + 1;
+        }
+        return count.ToString();
+    }
+
+    public Dictionary<string, Dictionary<string, string>> FormatLearningsForScript(List<string> learnings, List<string> orderedHeaders){
+        Dictionary<string, Dictionary<string, string>> learningsDict = new Dictionary<string, Dictionary<string, string>>{};
+        foreach(string learning in learnings){
+            List<string> learningSplit = learning.Split("|||").ToList();
+            string learningID = learningSplit[0];
+            Dictionary<string, string> innerDict = new Dictionary<string, string>{};
+            if(learningSplit.Count == orderedHeaders.Count){
+                for (int index = 1; index < learningSplit.Count; index++){ // skipping the first index
+                    innerDict[orderedHeaders[index]] = learningSplit[index];
+                }
+            }
+            learningsDict[learningID] = innerDict;
+        }
+        return learningsDict;
+    }
+
+    public void SaveLearning(string learningType, Dictionary<string, string> learningDict){
+        // create id for dict based on type
+        string learningID = GenerateLearningID(learningType);
+        List<string> learningHeaders = learningsHeadersDict[learningType];
+        string learningFileName = learningsFilenameDict[learningType];
+
+        string learningString = FormatLearningForDataStore(learningID, learningDict, learningHeaders);
+
+        dataIO.SaveRecord(learningFileName, learningString);
+    }
+
+    public string FormatLearningForDataStore(string id, Dictionary<string, string> recordDict, List<string> headers){
+        
+        List<string> recordList = new List<string>();
+        foreach(string header in headers){ 
+            if(header == "ID"){
+                recordList.Add(id);
+            }
+            else{
+                recordList.Add(recordDict[header]);
+            }
+        }
+
+        string recordString = string.Join("|||", recordList);
+        return recordString;
     }
     
 }
 
-public class DatabaseManager
-{
-    /// <summary>
-    /// interface with the data stores; can get or save data to those stores
-    /// </summary>
-    /// <returns></returns>
-    // public int generateId(){}
+public class DataIO{
 
-    public List<string> getOrCreateFile(string fileName, List<string> headers, string separator = "|||"){
-    // private void getOrCreateFile(string fileName, List<string> headers, string separator = "|||"){
+    public List<string> GetOrCreateFile(string fileName, List<string> headers, string separator = "|||"){
         if (!File.Exists(fileName))
         {
             // Create a file to write to
@@ -147,215 +334,7 @@ public class DatabaseManager
         return fileContents;
     }
 
-    public void saveRecord(string fileName, string newEntry){
+    public void SaveRecord(string fileName, string newEntry){
         File.AppendAllText(fileName, newEntry+"\n");
     }
 }
-
-public class LearningsManager{
-    protected List<string> headers = new List<string>{"ID", "Name", "Description", "Status"};
-    protected DatabaseManager databaseConnection = new DatabaseManager();
-
-    protected List<string> getLearnings(string learningFileName, List<string>learningHeaders){
-        List<string> learningList = databaseConnection.getOrCreateFile(learningFileName, learningHeaders);
-        return learningList;
-    }
-
-    public void saveLearning(string learningFileName, string record){
-        databaseConnection.saveRecord(learningFileName, record);
-    }
-
-    public Dictionary<string, string> getLearningIdsAndNames(List<string> learnings){
-        Dictionary<string, string> idsAndNamesDict = new Dictionary<string, string>();
-        foreach(string learning in learnings){
-            string[] learningSplit = learning.Split("|||");
-            idsAndNamesDict[learningSplit[1]] = learningSplit[0]; // name: id
-        }
-        return idsAndNamesDict;
-    }
-
-    public string getParentLearning(string parentLearningType){
-        List<string> existingParentLearnings = new List<string>();
-        if(parentLearningType == "goal"){
-            GoalsManager parentLearningManager = new GoalsManager();
-            existingParentLearnings = parentLearningManager.getGoals();
-        }
-        else if(parentLearningType == "skill"){
-            SkillsManager parentLearningManager = new SkillsManager();
-            existingParentLearnings = parentLearningManager.getSkills();
-        }
-        
-        Dictionary<string, string> learningsInfo = getLearningIdsAndNames(existingParentLearnings);
-        string learningName = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title($"Choose parent {parentLearningType}: ")
-                .PageSize(10)
-                .MoreChoicesText("")
-                .AddChoices(learningsInfo.Keys));
-        return learningsInfo[learningName];
-    }
-}
-
-public class SkillsManager : LearningsManager {
-    
-    public string skillsFileName = "Skills.txt";
-    // List<string> existingSkills = getSkills();
-
-    public List<string> getSkills(){
-        return getLearnings(this.skillsFileName, this.headers);
-    }
-
-    public void saveSkill(string name, string description, string status){
-        if(name != "" && description != "" && status != ""){
-            List<string> existingSkills = getSkills();
-            string skillId = existingSkills.Count.ToString();
-            string skillRecord = skillId +"|||"+ name +"|||"+ description +"|||"+ status;
-            saveLearning(this.skillsFileName, skillRecord);
-        }
-        else{
-            throw new InvalidOperationException("Required values are not present.");
-        }
-    }
-}
-
-public class GoalsManager : LearningsManager {
-    // update headers variable
-    public string goalsFileName = "Goals.txt";
-    // List<string> existingGoals = getGoals();
-    public GoalsManager(){
-        headers.Add("parentSkillID");
-    }
-
-    public List<string> getGoals(){
-        return getLearnings(this.goalsFileName, this.headers);
-    }
-
-    public string getParentSkill(){
-        SkillsManager skillsManager = new SkillsManager();
-        List<string> existingSkills = skillsManager.getSkills();
-        Dictionary<string, string> skillsInformation = getLearningIdsAndNames(existingSkills);
-        string skillName = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Choose completion status:")
-                .PageSize(10)
-                .MoreChoicesText("")
-                .AddChoices(skillsInformation.Keys));
-                // .AddChoices(new[] {
-
-                // }));
-        return skillsInformation[skillName];
-    }
-
-    public void saveGoal(string name, string description, string status){
-        if(name != "" && description != "" && status != ""){
-            List<string> existingGoals = getGoals();
-            string goalId = existingGoals.Count.ToString();
-            string parentSkillId = getParentSkill();
-            string goalRecord = goalId +"|||"+ name +"|||"+ description +"|||"+ status +"|||"+ parentSkillId;
-            saveLearning(this.goalsFileName, goalRecord);
-        }
-        else{
-            throw new InvalidOperationException("Required values are not present.");
-        }
-    }
-}
-
-public class MilestonesManager : LearningsManager{
-    // update headers variable
-    public string milestonesFileName = "Milestones.txt";
-    // List<string> existingGoals = getGoals();
-    public MilestonesManager(){
-        headers.Add("parentGoalID");
-    }
-    List<string> getMilestones(){
-        return getLearnings(this.milestonesFileName, this.headers);
-    }
-
-    public string getParentGoal(){
-        return getParentLearning("goal");
-    }
-
-    public void saveMilestone(string name, string description, string status){
-        if(name != "" && description != "" && status != ""){
-            List<string> existingMilestones = getMilestones();
-            string milestoneId = existingMilestones.Count.ToString();
-            string parentGoalID = getParentGoal();
-            string milestoneRecord = milestoneId +"|||"+ name +"|||"+ description +"|||"+ status +"|||"+ parentGoalID;
-            saveLearning(this.milestonesFileName, milestoneRecord);
-        }
-        else{
-            throw new InvalidOperationException("Required values are not present.");
-        }
-    }
-}
-
-public class Learning{
-    public string name;
-    public string description;
-    public string status;
-
-    public Learning(string name="", string description="", string status = "To-Do")
-    {
-        this.name = name;
-        this.description = description;
-        this.status = status;
-    }
-
-    public void viewLearning(){
-        Console.WriteLine(this.name);
-        Console.WriteLine(this.description);
-        Console.WriteLine(this.status);
-    }
-
-    public void addLearning(){
-        // update name
-        this.name = AnsiConsole.Prompt(
-                new TextPrompt<string>("Enter name: ")); // empty input is not allowed, so something must be entered
-        this.description = AnsiConsole.Prompt(
-                new TextPrompt<string>("Enter description: ")); // empty input is not allowed, so something must be entered
-        this.status = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Choose completion status:")
-                .PageSize(10)
-                .MoreChoicesText("")
-                .AddChoices(new[] {
-                    "To-Do", "Completed",
-                }));
-    }
-
-    // public void saveToDataStore(){
-    //     // pass info to database manager
-    // }
-
-    // generate id
-}
-
-public class Skill : Learning{
-    
-    public void saveToDataStore(){
-        SkillsManager skillManager = new SkillsManager();
-        skillManager.saveSkill(this.name, this.description, this.status);
-    }
-    // public string getName(){
-        
-    // }
-}
-
-public class Goal : Learning{
-    
-    public void saveToDataStore(){
-        GoalsManager goalManager = new GoalsManager();
-        goalManager.saveGoal(this.name, this.description, this.status);
-    }
-}
-
-public class Milestone : Learning{
-    
-    public void saveToDataStore(){
-        MilestonesManager milestoneManager = new MilestonesManager();
-        milestoneManager.saveMilestone(this.name, this.description, this.status);
-    }
-}
-
-// public class Milestone
-// {}
