@@ -50,8 +50,22 @@ public class LearningsManager{
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
             string key = kvp.Key;
             Dictionary<string, string> value = kvp.Value;
-            if(filterParentId != ""){
+            if(filterParentId != "" && learningType != "Skill"){
+                string valueParentId = "";
+                // try{
+                //     valueParentId = value["parentID"];
+                // }
+                // catch(Exception e){
+                //     Console.WriteLine($"Exception {e} in LearningsManager.GetLearningIdsAndNames");
+                //     Console.WriteLine("Printing key and value");
+                //     Console.WriteLine($"Key: {key}");
+                //     foreach(KeyValuePair<string, string> p in value){
+                //         Console.WriteLine($"{p.Key}: {p.Value}");
+                //     }
+                // }
+
                 if(value["parentID"] == filterParentId) {
+                // if(valueParentId == filterParentId) {
                     learningIDs.Add(key);
                     learningNames.Add(value["Name"]);
                 }
@@ -69,6 +83,10 @@ public class LearningsManager{
     }
 
     public void SaveLearning(string learningType, Dictionary<string, string> learningMetadata){
+        // Console.WriteLine("LearningsManager.SaveLearning");
+        // foreach (KeyValuePair<string, string> entry in learningMetadata){
+        //     Console.WriteLine($"{entry.Key}: {entry.Value}");
+        // }
         dataManager.SaveLearning(learningType, learningMetadata);
     }
 
@@ -285,9 +303,26 @@ public class DataManager{
         string learningID = GenerateLearningID(learningType);
         List<string> learningHeaders = learningsHeadersDict[learningType];
         string learningFileName = learningsFilenameDict[learningType];
-
+        
+        // Console.WriteLine("DataManager.SaveLearning:");
+        // foreach(KeyValuePair<string, string> entry in learningDict){
+        //     Console.WriteLine($"Key: {entry.Key}");
+        //     Console.WriteLine($"Value: {entry.Value}");
+        // }
+        
         string learningString = FormatLearningForDataStore(learningID, learningDict, learningHeaders);
+        // update the learnings lists
+        if(learningType == "Skill"){
+            Skills.Add(learningString);
+        }
+        else if(learningType == "Goal"){
+            Goals.Add(learningString);
+        }
+        else if(learningType == "Milestone"){
+            Milestones.Add(learningString);
+        }
 
+        // save back to data store
         dataIO.SaveRecord(learningFileName, learningString);
     }
 
