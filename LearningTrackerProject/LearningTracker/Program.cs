@@ -92,15 +92,21 @@ public class UserUI{
             List<string> activityTypes = new List<string>{"Progress", "Notes", "Manage Learning", "EXIT"};
             activity = ChooseFromSelection("Choose activity, or EXIT to exit LearningTracker:", activityTypes);
             
-            // pass result of child menu back to allow for EXIT if passed
-            if(activity == "Progress"){
-                activity = EnterProgressMenu();
+            try{
+                // pass result of child menu back to allow for EXIT if passed
+                if(activity == "Progress"){
+                    activity = EnterProgressMenu();
+                }
+                else if(activity == "Notes"){
+                    activity = EnterNotesMenu();
+                }
+                else if(activity == "Manage Learning"){
+                    activity = EnterLearningsMenu();
+                }
             }
-            else if(activity == "Notes"){
-                activity = EnterNotesMenu();
-            }
-            else if(activity == "Manage Learning"){
-                activity = EnterLearningsMenu();
+            catch (NotImplementedException){
+                Console.WriteLine("Accessing un-implemented method occurred. Exiting script.");
+                activity = "EXIT";
             }
         }
         while(activity != "EXIT");
