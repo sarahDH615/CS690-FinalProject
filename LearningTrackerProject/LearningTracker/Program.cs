@@ -50,7 +50,8 @@ public class LearningsManager{
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
             string key = kvp.Key;
             Dictionary<string, string> value = kvp.Value;
-            if(filterParentId != ""){
+            if(filterParentId != "" && learningType != "Skill"){
+
                 if(value["parentID"] == filterParentId) {
                     learningIDs.Add(key);
                     learningNames.Add(value["Name"]);
@@ -285,9 +286,19 @@ public class DataManager{
         string learningID = GenerateLearningID(learningType);
         List<string> learningHeaders = learningsHeadersDict[learningType];
         string learningFileName = learningsFilenameDict[learningType];
-
+        
         string learningString = FormatLearningForDataStore(learningID, learningDict, learningHeaders);
-
+        // update the learnings lists
+        if(learningType == "Skill"){
+            Skills.Add(learningString);
+        }
+        else if(learningType == "Goal"){
+            Goals.Add(learningString);
+        }
+        else if(learningType == "Milestone"){
+            Milestones.Add(learningString);
+        }
+        // save back to data store
         dataIO.SaveRecord(learningFileName, learningString);
     }
 
