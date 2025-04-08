@@ -196,7 +196,7 @@ public class UserUI{
         if(learningInfo["Names"].Count == 0){
             Console.WriteLine($"No related {learningType}s");
             // TO DO: allow re-entry
-            return ""
+            return "";
         }
         string ancestorName = ChooseFromSelection($"Choose {learningType} name:", learningInfo["Names"]);
         int index = learningInfo["Names"].IndexOf(ancestorName);
