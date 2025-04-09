@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # metadata testing file
 ui.md
+
+# database files
+*.txt
