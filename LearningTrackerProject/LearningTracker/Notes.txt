@@ -1,0 +1,4 @@
+ID|||Name|||Description|||Body
+1-0-0|||Notes on backstitches|||Thoughts I had learning about backstitching|||Back stitching is the strongest stitch. It takes longer though.
+0-xx-xx|||Coffee types|||types of coffee I've tried|||Arabica, Kenyan
+1-0-0|||Stitch notes|||Types of stitches|||Backstitch, halfstitch, running
