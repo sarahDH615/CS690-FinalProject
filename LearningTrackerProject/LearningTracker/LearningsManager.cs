@@ -27,13 +27,13 @@ public class LearningsManager{
         List<string> learningIDs = new List<string>();
         List<string> learningNames = new List<string>();
         if(learningType == "Skill"){
-            learningDict = dataManager.FormatLearningsForScript(dataManager.Skills, dataManager.learningsHeadersDict[learningType]);
+            learningDict = dataManager.FormatForScript(dataManager.Skills, dataManager.headersDict[learningType]);
         }
         else if(learningType == "Goal"){
-            learningDict = dataManager.FormatLearningsForScript(dataManager.Goals, dataManager.learningsHeadersDict[learningType]);
+            learningDict = dataManager.FormatForScript(dataManager.Goals, dataManager.headersDict[learningType]);
         }
         else if(learningType == "Milestone"){
-            learningDict = dataManager.FormatLearningsForScript(dataManager.Milestones, dataManager.learningsHeadersDict[learningType]);
+            learningDict = dataManager.FormatForScript(dataManager.Milestones, dataManager.headersDict[learningType]);
         }
 
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
