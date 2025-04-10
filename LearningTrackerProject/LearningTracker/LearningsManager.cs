@@ -4,7 +4,7 @@ public class LearningsManager{
     
     protected List<string> headers = new List<string>{"ID", "Name", "Description", "Status"};
     
-    DataManager dataManager = new DataManager();
+    protected internal DataManager dataManager = new DataManager();
 
     public Dictionary<string, string> GetCommonMetadataFieldsTextEntry(){
         Dictionary<string, string> metadataDictionary = new Dictionary<string, string>{
