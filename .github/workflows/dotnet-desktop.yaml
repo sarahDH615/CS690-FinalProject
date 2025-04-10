@@ -80,7 +80,7 @@ jobs:
     # Execute all unit tests in the solution
     - name: Execute unit tests
       run: |
-        cd ${{ github.workspace }}/LearningTracker
+        cd ./LearningTrackerProject/LearningTracker
         dotnet test
 
     # Restore the application to populate the obj folder with RuntimeIdentifiers
