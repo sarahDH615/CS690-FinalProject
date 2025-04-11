@@ -56,7 +56,24 @@ public class UserUI{
     }
     
     public string EnterProgressMenu(){
-        throw new NotImplementedException();
+        string action;
+
+        do{
+            List<string> actionTypes = new List<string>{"Progress Summary", "Update Progress", "BACK", "EXIT"};
+            action = ChooseFromSelection("Choose action, or BACK to exit Progress Menu, or EXIT to exit LearningTracker:", actionTypes);
+            
+            // pass result of child menu back to allow for EXIT if passed
+            if(action == "Progress Summary"){
+                action = EnterProgressSummaryMenu();
+            }
+            else if(action == "Update Progress"){
+                action = UpdateProgress();
+            }
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(action != "EXIT" && action != "BACK"); 
+
+        return action;
     }
 
     public string EnterNotesMenu(){
@@ -64,7 +81,7 @@ public class UserUI{
 
         do{
             List<string> actionTypes = new List<string>{"View", "Add", "Edit", "Delete", "BACK", "EXIT"};
-            action = ChooseFromSelection("Choose action, or BACK to exit Manage Learning Menu, or EXIT to exit LearningTracker:", actionTypes);
+            action = ChooseFromSelection("Choose action, or BACK to exit Manage Notes Menu, or EXIT to exit LearningTracker:", actionTypes);
             
             // pass result of child menu back to allow for EXIT if passed
             if(action == "View"){
@@ -215,7 +232,7 @@ public class UserUI{
             // save
             notesManager.SaveNote(metadataDict, noteIdComponents);
             
-            keepAdding = ChooseFromSelection("Select Add More to continue adding notes, or BACK to exit Add Learning Menu, or EXIT to exit LearningTracker:", new List<string>{"Add More", "BACK", "EXIT"});
+            keepAdding = ChooseFromSelection("Select Add More to continue adding notes, or BACK to exit Add Notes Menu, or EXIT to exit LearningTracker:", new List<string>{"Add More", "BACK", "EXIT"});
         }
         // BACK will go back to the previous while loop; EXIT will exit the script entirely
         while(keepAdding != "EXIT" && keepAdding != "BACK"); 
@@ -229,5 +246,69 @@ public class UserUI{
 
     public string DeleteNotes(){
         throw new NotImplementedException();
+    }
+
+    public string EnterProgressSummaryMenu(){
+        string viewMoreSummaries;
+
+        do{
+            List<string> actionTypes = new List<string>{"View all", "View Completed", "View To-Do", "BACK", "EXIT"};
+            viewMoreSummaries = ChooseFromSelection("Choose what progress summary you'd like to view, or BACK to exit Progress Summary Menu, or EXIT to exit LearningTracker:", actionTypes);
+            
+            if(viewMoreSummaries == "View all"){
+                ViewSummaries();
+            }
+            else if(viewMoreSummaries == "View Completed"){
+                ViewSummaries("Completed");
+            }
+            else if(viewMoreSummaries == "View To-Do"){
+                ViewSummaries("To-Do");
+            }
+            string viewMore = ChooseFromSelection("View other summaries?", new List<string>{"Yes", "No"});
+            if(viewMore == "No"){
+                viewMoreSummaries = "BACK";
+            }
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(viewMoreSummaries != "EXIT" && viewMoreSummaries != "BACK"); 
+
+        return viewMoreSummaries;
+    }
+
+    public string UpdateProgress(){
+        // string action;
+
+        // do{
+        //     List<string> actionTypes = new List<string>{"View all", "View Completed", "View To-Do", "BACK", "EXIT"};
+        //     action = ChooseFromSelection("Choose what progress summary you'd like to view, or BACK to exit Progress Summary Menu, or EXIT to exit LearningTracker:", actionTypes);
+            
+        //     // pass result of child menu back to allow for EXIT if passed
+        //     if(action == "View all"){
+        //         action = EnterProgressSummaryMenu();
+        //     }
+        //     else if(action == "View Completed"){
+        //         action = EnterProgressSummaryMenu();
+        //     }
+        //     else if(action == "View To-Do"){
+        //         action = EnterProgressSummaryMenu();
+        //     }
+        // }
+        // // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        // while(action != "EXIT" && action != "BACK"); 
+
+        // return action;
+        throw new NotImplementedException();
+    }
+
+    // public string ViewSummaries(string filter=""){
+    public void ViewSummaries(string filter=""){
+        // string viewMoreSummaries;
+        List<string> summaries = progressManager.GetProgressSummary(filter);
+        if(summaries.Count == 0 && filter != ""){
+            Console.WriteLine($"No summaries with status {filter}");
+        }
+        foreach(string summary in summaries){
+            Console.WriteLine(summary);
+        }
     }
 }

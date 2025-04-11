@@ -124,5 +124,47 @@ public class DataManager{
         string recordString = string.Join("|||", recordList);
         return recordString;
     }
+
+    public Dictionary<string, Dictionary<string, string>> GetFilteredLearnings(string learningType, string filterField="", string filter="", string filterByParent=""){
+        Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
+        if(learningType == "Skill"){
+            learningDict = FormatForScript(Skills, headersDict[learningType]);
+        }
+        else if(learningType == "Goal"){
+            learningDict = FormatForScript(Goals, headersDict[learningType]);
+        }
+        else if(learningType == "Milestone"){
+            learningDict = FormatForScript(Milestones, headersDict[learningType]);
+        }
+        if(filter == "" && filterByParent == ""){
+            return learningDict;
+        }
+        else if(filterField == "" && filter == "" && filterByParent != ""){
+            filterField = "parentID";
+            filter = filterByParent;
+            filterByParent = "";
+        }
+        Dictionary<string, Dictionary<string, string>> filteredDict = new Dictionary<string, Dictionary<string, string>>{};
+        List<Dictionary<string, string>> learningDictValues = learningDict.Values.ToList();
+        if(learningDictValues[0].Keys.Contains(filterField)){
+            foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
+                string key = kvp.Key;
+                Dictionary<string, string> value = kvp.Value;
+                if(value[filterField] == filter){
+                    if(filterByParent == ""){
+                        filteredDict[key] = value;
+                    }
+                    else if(learningType != "Skill" && value["parentID"] == filterByParent){
+                        filteredDict[key] = value;
+                    }
+                    
+                }
+            }
+        }
+        else{
+            throw new ArgumentException($"{filterField} is not a valid filter for {learningType}");  
+        }
+        return filteredDict;
+    }
     
 }
