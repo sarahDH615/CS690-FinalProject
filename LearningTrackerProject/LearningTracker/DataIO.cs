@@ -35,4 +35,8 @@ public class DataIO{
     public void SaveRecord(string fileName, string newEntry){
         File.AppendAllText(fileName, newEntry+"\n");
     }
+
+    public void UpdateRecord(string fileName, List<string> updatedFileContents){
+        File.WriteAllLines(fileName, updatedFileContents);
+    }
 }
