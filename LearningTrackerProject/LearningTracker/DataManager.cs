@@ -19,11 +19,17 @@ public class DataManager{
     public List<string> Milestones = new List<string>();
     public List<string> Notes = new List<string>();
 
+    public Dictionary<string, Dictionary<string, Dictionary<string, string>>> learningsDict = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>{}; 
+
     public DataManager(){
         Skills = dataIO.GetOrCreateFile(filenameDict["Skill"], headersDict["Skill"]);
         Goals = dataIO.GetOrCreateFile(filenameDict["Goal"], headersDict["Goal"]);
         Milestones = dataIO.GetOrCreateFile(filenameDict["Milestone"], headersDict["Milestone"]);
         Notes = dataIO.GetOrCreateFile(filenameDict["Note"], headersDict["Note"]);
+
+        learningsDict["Skill"] = FormatForScript(Skills, headersDict["Skill"]);
+        learningsDict["Goal"] = FormatForScript(Goals, headersDict["Goal"]);
+        learningsDict["Milestone"] = FormatForScript(Milestones, headersDict["Milestone"]);
     }
 
     public Dictionary<string, Dictionary<string, string>> GetLearning(string learningType){
@@ -74,25 +80,50 @@ public class DataManager{
         return learningsDict;
     }
 
-    public void SaveLearning(string learningType, Dictionary<string, string> learningDict){
+    public void SaveLearning(string learningType, Dictionary<string, string> learningDict, string learningID=""){
         // create id for dict based on type
-        string learningID = GenerateLearningID(learningType);
+        if(learningID == ""){
+            learningID = GenerateLearningID(learningType);
+        }
         List<string> learningHeaders = headersDict[learningType];
         string learningFileName = filenameDict[learningType];
         
         string learningString = FormatForDataStore(learningID, learningDict, learningHeaders);
-        // update the learnings lists
-        if(learningType == "Skill"){
-            Skills.Add(learningString);
-        }
-        else if(learningType == "Goal"){
-            Goals.Add(learningString);
-        }
-        else if(learningType == "Milestone"){
-            Milestones.Add(learningString);
-        }
+        // add to the learning list
+        SaveOrUpdateLearningsList(learningType, learningString);
+        // update dict
+        learningsDict[learningType][learningID] = learningDict;
+
         // save back to data store
         dataIO.SaveRecord(learningFileName, learningString);
+    }
+
+    public List<string> GetLearningTypeList(string learningType){
+        if(learningType == "Skill"){
+            return Skills;
+        }
+        else if(learningType == "Goal"){
+            return Goals;
+        }
+        else{
+            return Milestones;
+        }
+    }
+    
+    public void SaveOrUpdateLearningsList(string learningType, string learningString, string index=""){
+        // add to the learnings lists
+        List<string> learningList = GetLearningTypeList(learningType);
+        if(index != ""){
+            int indexInt;
+            bool successfulConversion = Int32.TryParse(index, out indexInt);
+            if(successfulConversion){
+                learningList[indexInt] = learningString;
+            }
+        }
+        else{
+            learningList.Add(learningString);
+        }
+        
     }
 
     public void SaveNote(Dictionary<string, string> noteMetadata, List<string> idComponents){
@@ -167,4 +198,19 @@ public class DataManager{
         return filteredDict;
     }
     
+    public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
+        // the ids should correspond to the place in the list
+        // the list and dictionary can then be updated using that id
+        // update list
+        List<string> learningHeaders = headersDict[learningType];
+        string learningString = FormatForDataStore(learningID, learningMetadata, learningHeaders);
+        // update the learnings lists
+        SaveOrUpdateLearningsList(learningType, learningString, learningID);
+        // update dict
+        learningsDict[learningType][learningID] = learningMetadata;
+
+        // save back to data store
+        dataIO.UpdateRecord(filenameDict[learningType], GetLearningTypeList(learningType));
+    }
+
 }

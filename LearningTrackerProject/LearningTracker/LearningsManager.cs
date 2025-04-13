@@ -26,32 +26,12 @@ public class LearningsManager{
         // Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
         List<string> learningIDs = new List<string>();
         List<string> learningNames = new List<string>();
-        // if(learningType == "Skill"){
-        //     learningDict = dataManager.FormatForScript(dataManager.Skills, dataManager.headersDict[learningType]);
-        // }
-        // else if(learningType == "Goal"){
-        //     learningDict = dataManager.FormatForScript(dataManager.Goals, dataManager.headersDict[learningType]);
-        // }
-        // else if(learningType == "Milestone"){
-        //     learningDict = dataManager.FormatForScript(dataManager.Milestones, dataManager.headersDict[learningType]);
-        // }
         Dictionary<string, Dictionary<string, string>> learningDict = dataManager.GetFilteredLearnings(learningType, "parentID", filterParentId);
         
 
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
             string key = kvp.Key;
             Dictionary<string, string> value = kvp.Value;
-            // if(filterParentId != "" && learningType != "Skill"){
-
-            //     if(value["parentID"] == filterParentId) {
-            //         learningIDs.Add(key);
-            //         learningNames.Add(value["Name"]);
-            //     }
-            // }
-            // else{
-            //     learningIDs.Add(key);
-            //     learningNames.Add(value["Name"]);
-            // }
             learningIDs.Add(key);
             learningNames.Add(value["Name"]);
 
@@ -62,8 +42,16 @@ public class LearningsManager{
         return learningIdAndNamesDict;        
     }
 
+    public Dictionary<string, string> GetLearningByID(string learningType, string learningID){
+        return dataManager.learningsDict[learningType][learningID];
+    }
+
     public void SaveLearning(string learningType, Dictionary<string, string> learningMetadata){
         dataManager.SaveLearning(learningType, learningMetadata);
+    }
+
+    public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
+        dataManager.UpdateLearning(learningType, learningID, learningMetadata);
     }
 
 }

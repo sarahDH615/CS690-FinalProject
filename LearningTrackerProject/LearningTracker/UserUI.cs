@@ -276,28 +276,41 @@ public class UserUI{
     }
 
     public string UpdateProgress(){
-        // string action;
+        string action;
+        do{
+            // get type of learning it's connected to
+            action = ChooseFromSelection(
+                "Choose learning type to update progress on, or BACK to exit Progress Summary Menu, or EXIT to exit LearningTracker:", 
+                new List<string>{"Skill", "Goal", "Milestone", "BACK", "EXIT"});
+            if(action != "EXIT" && action != "BACK"){
+                // get list of those learnings
+                string learningId = LookupLearningByName(action);
+                // get learning record
+                Dictionary<string, string> learningRecord = learningManager.GetLearningByID(action, learningId);
+                // give option to change
+                string newStatus = GetStatusForDB();
+                // no need to actually change in the database if the status is already equal to the supposed update
+                if(learningRecord["Status"] != newStatus){
+                    learningRecord["Status"] = newStatus;
+                    learningManager.UpdateLearning(action, learningId, learningRecord);
+                }
+            }
+        }
+        while(action != "EXIT" && action != "BACK"); 
 
-        // do{
-        //     List<string> actionTypes = new List<string>{"View all", "View Completed", "View To-Do", "BACK", "EXIT"};
-        //     action = ChooseFromSelection("Choose what progress summary you'd like to view, or BACK to exit Progress Summary Menu, or EXIT to exit LearningTracker:", actionTypes);
-            
-        //     // pass result of child menu back to allow for EXIT if passed
-        //     if(action == "View all"){
-        //         action = EnterProgressSummaryMenu();
-        //     }
-        //     else if(action == "View Completed"){
-        //         action = EnterProgressSummaryMenu();
-        //     }
-        //     else if(action == "View To-Do"){
-        //         action = EnterProgressSummaryMenu();
-        //     }
-        // }
-        // // BACK will go back to the previous while loop; EXIT will exit the script entirely
-        // while(action != "EXIT" && action != "BACK"); 
+        return action;
+    }
 
-        // return action;
-        throw new NotImplementedException();
+    public string GetStatusForDB(){
+        string status = ChooseFromSelection(
+            "Choose new status:", 
+            new List<string>{"Complete!", "Return to To-Do"});
+        if(status == "Complete!"){
+            return "Completed";
+        }
+        else{
+            return "To-Do";
+        }
     }
 
     // public string ViewSummaries(string filter=""){
