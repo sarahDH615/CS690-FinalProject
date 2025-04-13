@@ -131,7 +131,25 @@ public class UserUI{
     }
 
     public string ViewLearning(){
-        throw new NotImplementedException();
+        string keepViewing;
+
+        do{
+            string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
+            string learningId = GetLearningInDialogue(learningType);
+            Console.WriteLine($"{learningType} ID: {learningId}");
+            Dictionary<string, string> learningInfo = learningManager.GetLearningByID(learningType, learningId);
+            foreach(KeyValuePair<string, string> entry in learningInfo){
+                Console.WriteLine($"{entry.Key}: {entry.Value}");
+            }
+            
+            keepViewing = ChooseFromSelection(
+                "Select View More to continue viewing learnings, or BACK to exit View Learning Menu, or EXIT to exit LearningTracker:", 
+                new List<string>{"View More", "BACK", "EXIT"});
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(keepViewing != "EXIT" && keepViewing != "BACK"); 
+
+        return keepViewing;
     }
 
     public string AddLearning(){
@@ -140,17 +158,7 @@ public class UserUI{
 
         do{
             string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
-            // Dictionary<string, string> metadataDict = learningManager.GetCommonMetadataFieldsTextEntry();
-            // foreach(var field in metadataDict.Keys){
-            //     string value = GetTextFromUser(field);
-            //     metadataDict[field] = value;
-            // }
             Dictionary<string, string> metadataDict = GetMetadataFieldFromTextEntry(learningManager.GetCommonMetadataFieldsTextEntry());
-            // Dictionary<string, List<string>> metadataDictSelection = learningManager.GetCommonMetadataFieldsSelection();
-            // foreach(var field in metadataDictSelection.Keys){
-            //     string value = ChooseFromSelection($"Select {field}:", metadataDictSelection[field]);
-            //     metadataDict[field] = value;
-            // }
             metadataDict = GetMetadataFieldFromSelection(metadataDict, learningManager.GetCommonMetadataFieldsSelection());
             if(learningType == "Goal" || learningType == "Milestone"){
                 string ancestorSkillId = LookupLearningByName("Skill");
@@ -301,7 +309,28 @@ public class UserUI{
     }
 
     public string ViewNotes(){
-        throw new NotImplementedException();
+        string keepViewing;
+
+        do{
+            string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
+            string learningId = GetLearningInDialogue(learningType);
+            // show notes related to that learning
+            Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
+                Console.WriteLine($"Note ID: {entry.Key}");
+                foreach(KeyValuePair<string, string> subentry in entry.Value){
+                    Console.WriteLine($"{subentry.Key}: {subentry.Value}");
+                }
+            }
+            
+            keepViewing = ChooseFromSelection(
+                "Select View More to continue viewing notes, or BACK to exit View Notes Menu, or EXIT to exit LearningTracker:", 
+                new List<string>{"View More", "BACK", "EXIT"});
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(keepViewing != "EXIT" && keepViewing != "BACK"); 
+
+        return keepViewing;
     }
 
     public string GetLearningType(){
