@@ -11,7 +11,6 @@ public class UserUI{
 
     }
 
-
     public void EnterStartMenu(){
         string activity;  // warning CS8600: Converting null literal or possible null value to non-nullable type.
 
@@ -131,7 +130,25 @@ public class UserUI{
     }
 
     public string ViewLearning(){
-        throw new NotImplementedException();
+        string keepViewing;
+
+        do{
+            string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
+            string learningId = GetLearningInDialogue(learningType);
+            Console.WriteLine($"{learningType} ID: {learningId}");
+            Dictionary<string, string> learningInfo = learningManager.GetLearningByID(learningType, learningId);
+            foreach(KeyValuePair<string, string> entry in learningInfo){
+                Console.WriteLine($"{entry.Key}: {entry.Value}");
+            }
+            
+            keepViewing = ChooseFromSelection(
+                "Select View More to continue viewing learnings, or BACK to exit View Learning Menu, or EXIT to exit LearningTracker:", 
+                new List<string>{"View More", "BACK", "EXIT"});
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(keepViewing != "EXIT" && keepViewing != "BACK"); 
+
+        return keepViewing;
     }
 
     public string AddLearning(){
@@ -140,16 +157,8 @@ public class UserUI{
 
         do{
             string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
-            Dictionary<string, string> metadataDict = learningManager.GetCommonMetadataFieldsTextEntry();
-            foreach(var field in metadataDict.Keys){
-                string value = GetTextFromUser(field);
-                metadataDict[field] = value;
-            }
-            Dictionary<string, List<string>> metadataDictSelection = learningManager.GetCommonMetadataFieldsSelection();
-            foreach(var field in metadataDictSelection.Keys){
-                string value = ChooseFromSelection($"Select {field}:", metadataDictSelection[field]);
-                metadataDict[field] = value;
-            }
+            Dictionary<string, string> metadataDict = GetMetadataFieldFromTextEntry(learningManager.GetCommonMetadataFieldsTextEntry());
+            metadataDict = GetMetadataFieldFromSelection(metadataDict, learningManager.GetCommonMetadataFieldsSelection());
             if(learningType == "Goal" || learningType == "Milestone"){
                 string ancestorSkillId = LookupLearningByName("Skill");
                 if(learningType == "Goal"){
@@ -162,12 +171,30 @@ public class UserUI{
             }
             learningManager.SaveLearning(learningType, metadataDict);
             
-            keepAdding = ChooseFromSelection("Select Add More to continue adding learnings, or BACK to exit Add Learning Menu, or EXIT to exit LearningTracker:", new List<string>{"Add More", "BACK", "EXIT"});
+            keepAdding = ChooseFromSelection(
+                "Select Add More to continue adding learnings, or BACK to exit Add Learning Menu, or EXIT to exit LearningTracker:", 
+                new List<string>{"Add More", "BACK", "EXIT"});
         }
         // BACK will go back to the previous while loop; EXIT will exit the script entirely
         while(keepAdding != "EXIT" && keepAdding != "BACK"); 
 
         return keepAdding;
+    }
+
+    Dictionary<string, string> GetMetadataFieldFromSelection(Dictionary<string, string> metadataDictionary, Dictionary<string, List<string>> sourceDictionary){
+        foreach(var field in sourceDictionary.Keys){
+            string value = ChooseFromSelection($"Select {field}:", sourceDictionary[field]);
+            metadataDictionary[field] = value;
+        }
+        return metadataDictionary;
+    }
+
+    Dictionary<string, string> GetMetadataFieldFromTextEntry(Dictionary<string, string> metadataDictionary){
+        foreach(var field in metadataDictionary.Keys){
+            string value = GetTextFromUser(field);
+            metadataDictionary[field] = value;
+        }
+        return metadataDictionary;
     }
 
     public string LookupLearningByName(string learningType, string filterId = ""){
@@ -184,15 +211,166 @@ public class UserUI{
     }
 
     public string EditLearning(){
-        throw new NotImplementedException();
+        string editMoreLearnings = "";
+        do{
+            // get learnings
+            string learningType = GetLearningType();
+            // get the name of the learning
+            string learningId = GetLearningInDialogue(learningType);
+            Dictionary<string, string> learning = learningManager.GetLearningByID(learningType, learningId);
+            // choose which field to edit
+            string editField = ChooseFromSelection("Choose what field to edit:", learning.Keys.ToList());
+            // overwrite or add on
+            string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
+            Console.WriteLine($"Existing field content: {learning[editField]}");
+            string newContent = GetTextFromUser(editField);
+            if(editKind == "Overwrite"){
+                learning[editField] = newContent;
+            }
+            else {
+                learning[editField]+=newContent;
+            }
+            Console.WriteLine($"Updated {editField}: {learning[editField]}");
+            // save back to data store
+            learningManager.UpdateLearning(learningType, learningId, learning);
+            
+            string editMore = ChooseFromSelection("Edit other learnings?", new List<string>{"Yes", "No"});
+            if(editMore == "No"){
+                editMoreLearnings = "BACK";
+            }
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(editMoreLearnings != "EXIT" && editMoreLearnings != "BACK"); 
+
+        return editMoreLearnings;
     }
 
     public string DeleteLearning(){
-        throw new NotImplementedException();
+        // get the type of the learning
+        string learningType = GetLearningType();
+        // get the name of the learning
+        string learningId = GetLearningInDialogue(learningType);
+        List<string> expectedDescendantTypes = new List<string>();
+        // get learnings related to that learning
+        List<Dictionary<string, Dictionary<string, string>>> relatedLearnings = new List<Dictionary<string, Dictionary<string, string>>>();
+        if(learningType != "Milestone"){
+            relatedLearnings = learningManager.GetDescendantLearnings(learningId, learningType);
+        }
+        // get notes related to that learning
+        Dictionary<string, Dictionary<string, string>> relatedNotes = notesManager.GetNotes(learningType, learningId);
+        // if there are any, check before deleting
+        // learnings
+        if(relatedLearnings.Count > 0){
+            if(learningType == "Skill"){
+                expectedDescendantTypes.Add("Goal");
+                expectedDescendantTypes.Add("Milestone");
+            }
+            else{
+                expectedDescendantTypes.Add("Milestone");
+            }
+            Console.WriteLine($"Warning! Deleting learning would delete the following {expectedDescendantTypes[0]}s:");
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedLearnings[0]){
+                Console.WriteLine($"\t{entry.Value["Name"]}");
+            }
+            if(relatedLearnings.Count > 1){
+                Console.WriteLine($"Warning! Deleting learning would delete the following Milestones:");
+                foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedLearnings[1]){
+                    Console.WriteLine($"\t{entry.Value["Name"]}");
+                }
+            }
+        }
+        // notes
+        if(relatedNotes.Keys.Count > 0){
+            Console.WriteLine($"Warning! Deleting learning would delete the following Notes:");
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedNotes){
+                Console.WriteLine($"\t{entry.Value["Name"]}");
+            }
+        }
+        // confirm/deny deletes
+        string nextAction = ChooseFromSelection($"Do you wish to proceed with deletion(s)?:", new List<string>{"Yes", "No"});
+        if(nextAction == "Yes"){
+            // delete the learning itself
+            learningManager.DeleteLearning(learningId, learningType);
+            // delete the related learnings
+            if(relatedLearnings.Count > 0){
+                foreach(KeyValuePair<string, Dictionary<string, string>> learning in relatedLearnings[0]){
+                    learningManager.DeleteLearning(learning.Key, expectedDescendantTypes[0]);
+                }
+                if(relatedLearnings.Count > 1){
+                    foreach(KeyValuePair<string, Dictionary<string, string>> learning in relatedLearnings[1]){
+                        learningManager.DeleteLearning(learning.Key, expectedDescendantTypes[1]);
+                    }
+                }
+            }
+            // delete related notes
+            if(relatedNotes.Keys.Count > 0){
+                foreach(KeyValuePair<string, Dictionary<string, string>> note in relatedNotes){
+                    notesManager.DeleteNote(note.Key);
+                }
+            }
+        }
+        
+
+        return "";
+    }
+
+    public string GetLearningInDialogue(string learningType){
+        string learningId = "";
+        if(learningType != "Skill"){
+            Console.WriteLine($"Required! Name of skill related to {learningType}.");
+        }
+        string skillId = LookupLearningByName("Skill");
+        if(learningType == "Skill"){
+            learningId = skillId;
+        }
+        else{
+            if(learningType == "Milestone"){
+                Console.WriteLine($"Required! Name of goal related to {learningType}.");
+            }
+            string goalId = LookupLearningByName("Goal", skillId);
+            if(learningType == "Goal"){
+                learningId = goalId;
+            }
+            else if(learningType == "Milestone" && goalId != ""){
+                learningId = LookupLearningByName("Milestone", goalId);
+            }
+        }
+        return learningId;
     }
 
     public string ViewNotes(){
-        throw new NotImplementedException();
+        string keepViewing;
+
+        do{
+            string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
+            string learningId = GetLearningInDialogue(learningType);
+            // show notes related to that learning
+            Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
+            if(notesInfo.Keys.Count == 0){
+                Console.WriteLine($"No notes associated with this {learningType}.");
+            }
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
+                Console.WriteLine($"Note ID: {entry.Key}");
+                foreach(KeyValuePair<string, string> subentry in entry.Value){
+                    Console.WriteLine($"{subentry.Key}: {subentry.Value}");
+                }
+            }
+            
+            keepViewing = ChooseFromSelection(
+                "Select View More to continue viewing notes, or BACK to exit View Notes Menu, or EXIT to exit LearningTracker:", 
+                new List<string>{"View More", "BACK", "EXIT"});
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(keepViewing != "EXIT" && keepViewing != "BACK"); 
+
+        return keepViewing;
+    }
+
+    public string GetLearningType(){
+        string learningType = ChooseFromSelection(
+            "Select type of learning:", new List<string>{"Skill", "Goal", "Milestone"}
+        );
+        return learningType;
     }
 
     public string AddNotes(){
@@ -206,29 +384,10 @@ public class UserUI{
                 metadataDict[field] = value;
             }
             // choose learning type to connect the note to
-            string connectedLearningType = ChooseFromSelection(
-                "Select type of learning to connect the note to:", new List<string>{"Skill", "Goal", "Milestone"}
-            );
+            Console.WriteLine("Note will be connected to a learning:");
+            string connectedLearningType = GetLearningType();
             // get components for note id
-            List<string> noteIdComponents = new List<string>();
-            if(connectedLearningType != "Skill"){
-                Console.WriteLine($"Required! Name of skill related to {connectedLearningType}.");
-            }
-            string skillId = LookupLearningByName("Skill");
-            noteIdComponents.Add(skillId);
-            if(connectedLearningType == "Goal" || connectedLearningType == "Milestone"){
-                if(connectedLearningType == "Milestone"){
-                    Console.WriteLine($"Required! Name of goal related to {connectedLearningType}.");
-                }
-                string goalId = LookupLearningByName("Goal", skillId);
-                noteIdComponents.Add(goalId);
-                if(connectedLearningType == "Milestone" && goalId != ""){
-                    string milestoneId = LookupLearningByName("Milestone", goalId);
-                    noteIdComponents.Add(milestoneId);
-                }
-            }
-            // Console.WriteLine(string.Join(", ", metadataDict.Keys));
-            // Console.WriteLine(string.Join(", ", metadataDict.Values));
+            List<string> noteIdComponents = GetNoteIdComponents(connectedLearningType);
             // save
             notesManager.SaveNote(metadataDict, noteIdComponents);
             
@@ -240,12 +399,109 @@ public class UserUI{
         return keepAdding;
     }
 
+    public List<string> GetNoteIdComponents(string learningType){
+        List<string> components = new List<string>();
+        if(learningType != "Skill"){
+            Console.WriteLine($"Required! Name of skill related to {learningType}.");
+        }
+        string skillId = LookupLearningByName("Skill");
+        components.Add(skillId);
+        if(learningType == "Goal" || learningType == "Milestone"){
+            if(learningType == "Milestone"){
+                Console.WriteLine($"Required! Name of goal related to {learningType}.");
+            }
+            string goalId = LookupLearningByName("Goal", skillId);
+            components.Add(goalId);
+            if(learningType == "Milestone" && goalId != ""){
+                string milestoneId = LookupLearningByName("Milestone", goalId);
+                components.Add(milestoneId);
+            }
+        }
+        return components;
+    }
+
     public string EditNotes(){
-        throw new NotImplementedException();
+        string editMoreNotes = "";
+        do{
+            // get note
+            // get all notes 
+            List<List<string>> notesStrings = new List<List<string>>();
+            Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes();
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
+                notesStrings.Add(new List<string>{entry.Key, CreateNoteString(entry.Key, entry.Value["Name"])});
+            }
+            List<string> noteNames = notesStrings.Select(noteString => noteString[1]).ToList();
+            List<string> noteIds = notesStrings.Select(noteString => noteString[0]).ToList();
+            // Console.WriteLine(string.Join(Environment.NewLine, noteNames));
+            string chosenNoteName = ChooseFromSelection(
+                "Choose what note field you'd like to edit, or BACK to exit Edit Notes Menu, or EXIT to exit LearningTracker:", 
+                noteNames);
+            string chosenNoteId = noteIds[noteNames.IndexOf(chosenNoteName)];
+            Dictionary<string, string> note = notesManager.GetNoteByID(chosenNoteId);
+            // choose which field to edit
+            string editField = ChooseFromSelection("Choose what field to edit:", note.Keys.ToList());
+            // overwrite or add on
+            string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
+            Console.WriteLine($"Existing field content: {note[editField]}");
+            string newContent = GetTextFromUser(editField);
+            if(editKind == "Overwrite"){
+                note[editField] = newContent;
+            }
+            else {
+                note[editField]+=newContent;
+            }
+            Console.WriteLine($"Updated {editField}: {note[editField]}");
+            // save back to data store
+            notesManager.UpdateNote(chosenNoteId, note);
+            
+            string editMore = ChooseFromSelection("Edit other notes?", new List<string>{"Yes", "No"});
+            if(editMore == "No"){
+                editMoreNotes = "BACK";
+            }
+        }
+        // BACK will go back to the previous while loop; EXIT will exit the script entirely
+        while(editMoreNotes != "EXIT" && editMoreNotes != "BACK"); 
+
+        return editMoreNotes;
+    }
+
+    public string CreateNoteString(string noteId, string noteName){
+        // get associated skills using id
+        string noteString = $"{noteName}";
+        List<string> noteIdSplit = noteId.Split("-").ToList();
+        List<string> noteStringComponents = new List<string>();
+        // skill
+        if(noteIdSplit[0] != "xx"){
+            noteStringComponents.Add(
+                $"related skill: {learningManager.GetLearningByID("Skill", noteIdSplit[0])["Name"]}");
+        }
+        if(noteIdSplit[1] != "xx"){
+            noteStringComponents.Add(
+                $"related goal: {learningManager.GetLearningByID("Goal", noteIdSplit[1])["Name"]}");
+        }
+        if(noteIdSplit[2] != "xx"){
+            noteStringComponents.Add(
+                $"related milestone: {learningManager.GetLearningByID("Milestone", noteIdSplit[2])["Name"]}");
+        }
+        noteString+=$" ({string.Join(", ", noteStringComponents)})";
+        return noteString;
     }
 
     public string DeleteNotes(){
-        throw new NotImplementedException();
+        // find relevant note
+        string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
+        string learningId = GetLearningInDialogue(learningType);
+        // show notes related to that learning
+        Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
+        List<(string Key, string)> notesInfoSubset = notesInfo.Select(noteInfo => (noteInfo.Key, noteInfo.Value["Name"])).ToList();
+        List<string> noteIds = notesInfoSubset.Select(infoSubset => infoSubset.Key).ToList();
+        List<string> noteNames = notesInfoSubset.Select(infoSubset => infoSubset.ToString()).ToList();
+        string selectedNoteName = ChooseFromSelection(
+            "Choose existing note to delete:", noteNames);
+        string selectedNoteId = noteIds[noteNames.IndexOf(selectedNoteName)];
+        // send to delete function
+        notesManager.DeleteNote(selectedNoteId);
+        return "";
     }
 
     public string EnterProgressSummaryMenu(){

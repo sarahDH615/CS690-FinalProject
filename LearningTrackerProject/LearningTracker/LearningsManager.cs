@@ -1,4 +1,5 @@
 namespace LearningTracker;
+using System.Linq;
 
 public class LearningsManager{
     
@@ -19,6 +20,25 @@ public class LearningsManager{
             {"Status", new List<string>{"To-Do", "Completed"}}
         };
         return metadataDictionary;
+    }
+
+    public List<Dictionary<string, Dictionary<string, string>>> GetDescendantLearnings(string learningId, string learningType){
+        List<Dictionary<string, Dictionary<string, string>>> relatedLearnings = new List<Dictionary<string, Dictionary<string, string>>>{};
+        Dictionary<string, Dictionary<string, string>> filteredGoals = dataManager.FilterByDictValue(
+            dataManager.learningsDict["Goal"], "parentID", learningId);
+        relatedLearnings.Add(filteredGoals);
+        
+        if(learningType != "Goal"){
+            List<string> goalIds = filteredGoals.Keys.ToList();
+            if(goalIds.Count > 0){
+                foreach(string goalId in goalIds){
+                    Dictionary<string, Dictionary<string, string>> filteredMilestones = dataManager.FilterByDictValue(
+                        dataManager.learningsDict["Milestone"], "parentID", goalId);
+                    relatedLearnings.Add(filteredMilestones);
+                }
+            }
+        } 
+        return relatedLearnings;   
     }
 
     public Dictionary<string, List<string>> GetLearningIdsAndNames(string learningType, string filterParentId = ""){
@@ -52,6 +72,10 @@ public class LearningsManager{
 
     public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
         dataManager.UpdateLearning(learningType, learningID, learningMetadata);
+    }
+
+    public void DeleteLearning(string learningId, string learningType){
+        dataManager.DeleteLearning(learningId, learningType);
     }
 
 }

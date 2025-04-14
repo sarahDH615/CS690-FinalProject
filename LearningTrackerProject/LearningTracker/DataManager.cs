@@ -20,6 +20,7 @@ public class DataManager{
     public List<string> Notes = new List<string>();
 
     public Dictionary<string, Dictionary<string, Dictionary<string, string>>> learningsDict = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>{}; 
+    public Dictionary<string, Dictionary<string, string>> notesDict = new Dictionary<string, Dictionary<string, string>>{}; 
 
     public DataManager(){
         Skills = dataIO.GetOrCreateFile(filenameDict["Skill"], headersDict["Skill"]);
@@ -30,6 +31,7 @@ public class DataManager{
         learningsDict["Skill"] = FormatForScript(Skills, headersDict["Skill"]);
         learningsDict["Goal"] = FormatForScript(Goals, headersDict["Goal"]);
         learningsDict["Milestone"] = FormatForScript(Milestones, headersDict["Milestone"]);
+        notesDict = FormatForScript(Notes, headersDict["Note"]);
     }
 
     public Dictionary<string, Dictionary<string, string>> GetLearning(string learningType){
@@ -61,7 +63,15 @@ public class DataManager{
                 components.Add("xx");
             }
         }
-        return string.Join("-", components);
+        string noteIdStart = string.Join("-", components);
+        string noteIdEnd = GetNotesPerAssociationCount(noteIdStart);
+        return $"{noteIdStart}-{noteIdEnd}";
+    }
+
+    public string GetNotesPerAssociationCount(string idStart){
+        List<string> previousAssociatedNotes = Notes.Where(
+            note => note.StartsWith($"{idStart}-")).ToList();
+        return previousAssociatedNotes.Count.ToString();
     }
 
     public Dictionary<string, Dictionary<string, string>> FormatForScript(List<string> learnings, List<string> orderedHeaders){
@@ -114,9 +124,8 @@ public class DataManager{
         // add to the learnings lists
         List<string> learningList = GetLearningTypeList(learningType);
         if(index != ""){
-            int indexInt;
-            bool successfulConversion = Int32.TryParse(index, out indexInt);
-            if(successfulConversion){
+            int indexInt = GetIntegerIndexFromIdentifier(learningList, index);
+            if(indexInt > -1){
                 learningList[indexInt] = learningString;
             }
         }
@@ -124,6 +133,30 @@ public class DataManager{
             learningList.Add(learningString);
         }
         
+    }
+
+    public void SaveOrUpdateNotesList(string noteString, string index=""){
+        if(index != ""){
+            int indexInt = GetIntegerIndexFromIdentifier(Notes, index);
+            if(indexInt > -1){
+                Notes[indexInt] = noteString;
+            }
+        }
+        else{
+            Notes.Add(noteString);
+        }
+        
+    }
+
+    public int GetIntegerIndexFromIdentifier(List<string> lookupList, string stringIndex, string separator="|||"){
+        List<string> previousStrings = lookupList.Where(
+            learning => learning.StartsWith($"{stringIndex}{separator}")).ToList();
+        if(previousStrings.Count == 0){
+            return -1;
+        }
+        else{
+            return lookupList.IndexOf(previousStrings[0]);
+        }
     }
 
     public void SaveNote(Dictionary<string, string> noteMetadata, List<string> idComponents){
@@ -158,15 +191,7 @@ public class DataManager{
 
     public Dictionary<string, Dictionary<string, string>> GetFilteredLearnings(string learningType, string filterField="", string filter="", string filterByParent=""){
         Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
-        if(learningType == "Skill"){
-            learningDict = FormatForScript(Skills, headersDict[learningType]);
-        }
-        else if(learningType == "Goal"){
-            learningDict = FormatForScript(Goals, headersDict[learningType]);
-        }
-        else if(learningType == "Milestone"){
-            learningDict = FormatForScript(Milestones, headersDict[learningType]);
-        }
+        learningDict = learningsDict[learningType];
         if(filter == "" && filterByParent == ""){
             return learningDict;
         }
@@ -199,7 +224,6 @@ public class DataManager{
     }
     
     public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
-        // the ids should correspond to the place in the list
         // the list and dictionary can then be updated using that id
         // update list
         List<string> learningHeaders = headersDict[learningType];
@@ -208,9 +232,84 @@ public class DataManager{
         SaveOrUpdateLearningsList(learningType, learningString, learningID);
         // update dict
         learningsDict[learningType][learningID] = learningMetadata;
-
+        List<string> learningsWithHeader = Enumerable.Concat(
+            new List<string>{$"{string.Join("|||", headersDict[learningType])}"}, 
+            GetLearningTypeList(learningType)).ToList();
         // save back to data store
-        dataIO.UpdateRecord(filenameDict[learningType], GetLearningTypeList(learningType));
+        dataIO.UpdateRecord(filenameDict[learningType], learningsWithHeader);
     }
 
+    public void UpdateNote(string noteID, Dictionary<string, string> noteMetadata){
+        // the list and dictionary can then be updated using that id
+        // update list
+        List<string> headers = headersDict["Note"];
+        string noteString = FormatForDataStore(noteID, noteMetadata, headers);
+        // update the learnings lists
+        SaveOrUpdateNotesList(noteString, noteID);
+        // update dict
+        notesDict[noteID] = noteMetadata;
+        List<string> notesWithHeader = Enumerable.Concat(
+            new List<string>{$"{string.Join("|||", headersDict["Note"])}"}, 
+            Notes).ToList();
+
+        // save back to data store
+        dataIO.UpdateRecord(filenameDict["Note"], notesWithHeader);
+    }
+
+    public void DeleteLearning(string learningId, string learningType){
+        // get related list of learnings
+        List<string> learningsList = GetLearningTypeList(learningType);
+        int learningIndex = GetIntegerIndexFromIdentifier(learningsList, learningId);
+        if(learningIndex > -1){
+            learningsList.RemoveAt(learningIndex);
+        }
+        // update the learning list
+        UpdateLearningList(learningType, learningsList);
+        // update the learning dictionary
+        learningsDict[learningType] = FormatForScript(learningsList, headersDict[learningType]);
+        // save to data store
+        learningsList.Insert(0, $"{string.Join("|||", headersDict[learningType])}");
+        dataIO.UpdateRecord(filenameDict[learningType], learningsList);
+    }
+
+    public void UpdateLearningList(string learningType, List<string> learningInfo){
+        if(learningType == "Skill"){
+            Skills = learningInfo;
+        }
+        else if(learningType == "Goal"){
+            Goals = learningInfo;
+        }
+        else{
+            Milestones = learningInfo;
+        }
+    }
+
+    public void DeleteNote(string noteId){
+        // get related list of notes
+        int noteIndex = GetIntegerIndexFromIdentifier(Notes, noteId);
+        if(noteIndex > -1){
+            Notes.RemoveAt(noteIndex); // this should update in place
+        }
+        // update the learning dictionary
+        notesDict.Remove(noteId);
+        // save to data store
+        List<string> notesWithHeader = Enumerable.Concat(
+            new List<string>{$"{string.Join("|||", headersDict["Note"])}"}, 
+            Notes).ToList();
+        dataIO.UpdateRecord(filenameDict["Note"], notesWithHeader);
+    }
+
+    public Dictionary<string, Dictionary<string, string>> FilterByDictValue(Dictionary<string, Dictionary<string, string>> dictToFilter, string filterValueName, string filterValue){
+        var filterList = dictToFilter.Where(kvp => kvp.Value[filterValueName] == filterValue);
+        // back to a dictionary
+        var newDictionary = filterList.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);  
+        return newDictionary;   
+    }
+
+    public Dictionary<string, Dictionary<string, string>> FilterByDictKey(Dictionary<string, Dictionary<string, string>> dictToFilter, string filterValue){
+        var filterList = dictToFilter.Where(kvp => kvp.Key == filterValue);
+        // back to a dictionary
+        var newDictionary = filterList.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);  
+        return newDictionary;   
+    }
 }
