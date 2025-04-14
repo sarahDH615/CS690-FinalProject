@@ -38,8 +38,16 @@ public class NotesManager{
         }
     }
 
+    public Dictionary<string, string> GetNoteByID(string noteID){
+        return dataManager.notesDict[noteID];
+    }
+
     public void DeleteNote(string noteId){
         dataManager.DeleteNote(noteId);
+    }
+
+    public void UpdateNote(string noteId, Dictionary<string, string> noteContent){
+        dataManager.UpdateNote(noteId, noteContent);
     }
 
 }
