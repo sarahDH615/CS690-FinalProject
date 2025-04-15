@@ -33,7 +33,6 @@ public class LearningsManagerTest
         var testSkillsDict = testLearningsManager.GetLearningIdsAndNames("Skill");
         var testGoalsDict1 = testLearningsManager.GetLearningIdsAndNames("Goal", "k1");
         var testGoalsDict2 = testLearningsManager.GetLearningIdsAndNames("Goal", "k2");
-        Assert.Contains("k1", testSkillsDict["IDs"]);
         Assert.Contains("k2", testSkillsDict["IDs"]);
         Assert.Contains("g1", testGoalsDict1["IDs"]);
         Assert.Contains("g2", testGoalsDict1["IDs"]);

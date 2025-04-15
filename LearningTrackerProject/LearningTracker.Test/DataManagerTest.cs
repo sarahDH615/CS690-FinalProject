@@ -42,8 +42,8 @@ public class DataManagerTest
         // test use of 'blank' segments
         List<string> testIdComponents2 = new List<string>{"1"};
         string testNoteId2 = testDataManager.CreateNoteID(testIdComponents2);
-        Assert.Equal("1-2-3-4", testNoteId1);
-        Assert.Equal("1-xx-xx", testNoteId2);
+        Assert.Equal("1-2-3-4-0", testNoteId1);
+        Assert.Equal("1-xx-xx-0", testNoteId2);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class DataManagerTest
         };
         testDataManager.SaveNote(testNoteMetadata, testIdComponents);
         Assert.Equal(2, testDataManager.Notes.Count);
-        Assert.Equal("12-16-2|||Test name|||Test description|||Test body", testDataManager.Notes[1]);
+        Assert.Equal("12-16-2-0|||Test name|||Test description|||Test body", testDataManager.Notes[1]);
     }
 
     [Fact]

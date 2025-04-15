@@ -202,7 +202,7 @@ public class DataManager{
         }
         Dictionary<string, Dictionary<string, string>> filteredDict = new Dictionary<string, Dictionary<string, string>>{};
         List<Dictionary<string, string>> learningDictValues = learningDict.Values.ToList();
-        if(learningDictValues[0].Keys.Contains(filterField)){
+        if(learningDictValues.Count > 0 && learningDictValues[0].Keys.Contains(filterField)){
             foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
                 string key = kvp.Key;
                 Dictionary<string, string> value = kvp.Value;
@@ -217,6 +217,7 @@ public class DataManager{
                 }
             }
         }
+        else if(learningDictValues.Count == 0){}
         else{
             throw new ArgumentException($"{filterField} is not a valid filter for {learningType}");  
         }
