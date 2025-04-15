@@ -46,7 +46,7 @@ public class LearningsManager{
         // Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
         List<string> learningIDs = new List<string>();
         List<string> learningNames = new List<string>();
-        Dictionary<string, Dictionary<string, string>> learningDict = dataManager.GetFilteredLearnings(learningType, "parentID", filterParentId);
+        Dictionary<string, Dictionary<string, string>> learningDict = dataManager.GetFilteredLearnings(learningType, new Dictionary<string, string>{{"parentID", filterParentId}});
         
 
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){

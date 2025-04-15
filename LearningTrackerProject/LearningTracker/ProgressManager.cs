@@ -16,16 +16,16 @@ public class ProgressManager{
         else{
             filterName = "Status";
         }
-        Dictionary<string, Dictionary<string, string>> skills = dataManager.GetFilteredLearnings("Skill", filterName, filter);
+        Dictionary<string, Dictionary<string, string>> skills = dataManager.GetFilteredLearnings("Skill", new Dictionary<string, string>{{filterName, filter}});
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in skills ){
             string learningString = ""; 
             string skillId = kvp.Key;
             learningString+= $"{kvp.Value["Name"]}: {kvp.Value["Status"]}{Environment.NewLine}";
-            Dictionary<string, Dictionary<string, string>> goals = dataManager.GetFilteredLearnings("Goal", filterName, filter, skillId);
+            Dictionary<string, Dictionary<string, string>> goals = dataManager.GetFilteredLearnings("Goal", new Dictionary<string, string>{{filterName, filter}, {"ParentID", skillId}});
             foreach( KeyValuePair<string, Dictionary<string, string>> pair in goals ){
                 string goalId = pair.Key;
                 learningString+= $"\t{pair.Value["Name"]}: {pair.Value["Status"]}{Environment.NewLine}";
-                Dictionary<string, Dictionary<string, string>> milestones = dataManager.GetFilteredLearnings("Milestone", filterName, filter, goalId);
+                Dictionary<string, Dictionary<string, string>> milestones = dataManager.GetFilteredLearnings("Milestone", new Dictionary<string, string>{{filterName, filter}, {"ParentID", goalId}});
                 foreach( Dictionary<string, string> mpair in milestones.Values ){
                     learningString+= $"\t\t{mpair["Name"]}: {mpair["Status"]}{Environment.NewLine}";
                 }

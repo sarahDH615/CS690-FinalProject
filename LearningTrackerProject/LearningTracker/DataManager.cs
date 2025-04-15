@@ -13,7 +13,7 @@ public class DataManager{
         {"Milestone", new List<string>{"ID", "Name", "Description", "Status", "parentID"}},
         {"Note", new List<string>{"ID", "Name", "Description", "Body"}}
     };
-    DataIO dataIO = new DataIO();
+    DataIOSQL dataIO = new DataIOSQL();
     public List<string> Skills = new List<string>();
     public List<string> Goals = new List<string>();
     public List<string> Milestones = new List<string>();
@@ -23,35 +23,37 @@ public class DataManager{
     public Dictionary<string, Dictionary<string, string>> notesDict = new Dictionary<string, Dictionary<string, string>>{}; 
 
     public DataManager(){
-        Skills = dataIO.GetOrCreateFile(filenameDict["Skill"], headersDict["Skill"]);
-        Goals = dataIO.GetOrCreateFile(filenameDict["Goal"], headersDict["Goal"]);
-        Milestones = dataIO.GetOrCreateFile(filenameDict["Milestone"], headersDict["Milestone"]);
-        Notes = dataIO.GetOrCreateFile(filenameDict["Note"], headersDict["Note"]);
+        learningsDict["Skill"] = dataIO.GetAllResultsFromTable("skills");
+        learningsDict["Goal"] = dataIO.GetAllResultsFromTable("goals");
+        learningsDict["Milestone"] = dataIO.GetAllResultsFromTable("milestones");
+        notesDict = dataIO.GetAllResultsFromTable("notes");
 
-        learningsDict["Skill"] = FormatForScript(Skills, headersDict["Skill"]);
-        learningsDict["Goal"] = FormatForScript(Goals, headersDict["Goal"]);
-        learningsDict["Milestone"] = FormatForScript(Milestones, headersDict["Milestone"]);
-        notesDict = FormatForScript(Notes, headersDict["Note"]);
+        Skills = FormatAllAsList(learningsDict["Skill"], headersDict["Skill"]);
+        Goals = FormatAllAsList(learningsDict["Goal"], headersDict["Goal"]);
+        Milestones = FormatAllAsList(learningsDict["Milestone"], headersDict["Milestone"]);
+        Notes = FormatAllAsList(learningsDict["Note"], headersDict["Note"]);
+
+        
     }
 
-    public Dictionary<string, Dictionary<string, string>> GetLearning(string learningType){
-        List<string> learningsList = dataIO.GetOrCreateFile(filenameDict[learningType], headersDict[learningType]);
-        return FormatForScript(learningsList, headersDict[learningType]);
-    }
+    // public Dictionary<string, Dictionary<string, string>> GetLearning(string learningType){
+    //     List<string> learningsList = dataIO.GetOrCreateFile(filenameDict[learningType], headersDict[learningType]);
+    //     return FormatAsDict(learningsList, headersDict[learningType]);
+    // }
 
-    public string GenerateLearningID(string learningType){
-        int count = 0;
-        if(learningType == "Skill"){
-            count = Skills.Count + 1;
-        }
-        else if(learningType == "Goal"){
-            count = Goals.Count + 1;
-        }
-        else if(learningType == "Milestone"){
-            count = Milestones.Count + 1;
-        }
-        return count.ToString();
-    }
+    // public string GenerateLearningID(string learningType){
+    //     int count = 0;
+    //     if(learningType == "Skill"){
+    //         count = Skills.Count + 1;
+    //     }
+    //     else if(learningType == "Goal"){
+    //         count = Goals.Count + 1;
+    //     }
+    //     else if(learningType == "Milestone"){
+    //         count = Milestones.Count + 1;
+    //     }
+    //     return count.ToString();
+    // }
 
     public string CreateNoteID(List<string>idComponents, int componentLength=3){
         List<string> components = new List<string>();
@@ -63,18 +65,10 @@ public class DataManager{
                 components.Add("xx");
             }
         }
-        string noteIdStart = string.Join("-", components);
-        string noteIdEnd = GetNotesPerAssociationCount(noteIdStart);
-        return $"{noteIdStart}-{noteIdEnd}";
+        return string.Join("-", components);
     }
 
-    public string GetNotesPerAssociationCount(string idStart){
-        List<string> previousAssociatedNotes = Notes.Where(
-            note => note.StartsWith($"{idStart}-")).ToList();
-        return previousAssociatedNotes.Count.ToString();
-    }
-
-    public Dictionary<string, Dictionary<string, string>> FormatForScript(List<string> learnings, List<string> orderedHeaders){
+    public Dictionary<string, Dictionary<string, string>> FormatAsDict(List<string> learnings, List<string> orderedHeaders){
         Dictionary<string, Dictionary<string, string>> learningsDict = new Dictionary<string, Dictionary<string, string>>{};
         foreach(string learning in learnings){
             List<string> learningSplit = learning.Split("|||").ToList();
@@ -90,22 +84,13 @@ public class DataManager{
         return learningsDict;
     }
 
-    public void SaveLearning(string learningType, Dictionary<string, string> learningDict, string learningID=""){
-        // create id for dict based on type
-        if(learningID == ""){
-            learningID = GenerateLearningID(learningType);
-        }
-        List<string> learningHeaders = headersDict[learningType];
-        string learningFileName = filenameDict[learningType];
-        
-        string learningString = FormatForDataStore(learningID, learningDict, learningHeaders);
-        // add to the learning list
-        SaveOrUpdateLearningsList(learningType, learningString);
+    public void SaveLearning(string learningType, Dictionary<string, string> learningDict){
+        dataIO.AddToDB(learningType, learningDict);
+        string learningID = dataIO.GetMostRecentValueFromTable(learningType);
+        // update the list
+        SaveOrUpdateLearningsList(learningType, FormatAsList(learningID, learningDict, headersDict[learningType]));
         // update dict
         learningsDict[learningType][learningID] = learningDict;
-
-        // save back to data store
-        dataIO.SaveRecord(learningFileName, learningString);
     }
 
     public List<string> GetLearningTypeList(string learningType){
@@ -121,8 +106,8 @@ public class DataManager{
     }
     
     public void SaveOrUpdateLearningsList(string learningType, string learningString, string index=""){
-        // add to the learnings lists
         List<string> learningList = GetLearningTypeList(learningType);
+        // add to the learnings lists
         if(index != ""){
             int indexInt = GetIntegerIndexFromIdentifier(learningList, index);
             if(indexInt > -1){
@@ -132,7 +117,6 @@ public class DataManager{
         else{
             learningList.Add(learningString);
         }
-        
     }
 
     public void SaveOrUpdateNotesList(string noteString, string index=""){
@@ -161,19 +145,21 @@ public class DataManager{
 
     public void SaveNote(Dictionary<string, string> noteMetadata, List<string> idComponents){
         // create id for dict based on type
-        string noteId = CreateNoteID(idComponents);
+        string code = CreateNoteID(idComponents);
+        noteMetadata["ConnectedLearningCode"] = code;
         List<string> noteHeaders = headersDict["Note"];
-        string noteFileName = filenameDict["Note"];
+
+        dataIO.AddToDB("Note", noteMetadata);
+        string noteId = dataIO.GetMostRecentValueFromTable("notes");
         
-        string noteString = FormatForDataStore(noteId, noteMetadata, noteHeaders);
-        // Console.WriteLine(noteString);
+        string noteString = FormatAsList(noteId, noteMetadata, noteHeaders);
         // update the notes list
-        Notes.Add(noteString);
-        // save back to data store
-        dataIO.SaveRecord(noteFileName, noteString);
+        SaveOrUpdateNotesList(noteString);
+        // update the notes dict
+        notesDict[noteId] = noteMetadata;
     }
 
-    public string FormatForDataStore(string id, Dictionary<string, string> recordDict, List<string> headers){
+    public string FormatAsList(string id, Dictionary<string, string> recordDict, List<string> headers){
         
         List<string> recordList = new List<string>();
         foreach(string header in headers){ 
@@ -189,71 +175,40 @@ public class DataManager{
         return recordString;
     }
 
-    public Dictionary<string, Dictionary<string, string>> GetFilteredLearnings(string learningType, string filterField="", string filter="", string filterByParent=""){
+    public Dictionary<string, Dictionary<string, string>> GetFilteredLearnings(string learningType, Dictionary<string, string> filters){
         Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
         learningDict = learningsDict[learningType];
-        if(filter == "" && filterByParent == ""){
+        if(filters.Keys.Count == 0){
             return learningDict;
         }
-        else if(filterField == "" && filter == "" && filterByParent != ""){
-            filterField = "parentID";
-            filter = filterByParent;
-            filterByParent = "";
-        }
-        Dictionary<string, Dictionary<string, string>> filteredDict = new Dictionary<string, Dictionary<string, string>>{};
-        List<Dictionary<string, string>> learningDictValues = learningDict.Values.ToList();
-        if(learningDictValues[0].Keys.Contains(filterField)){
-            foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
-                string key = kvp.Key;
-                Dictionary<string, string> value = kvp.Value;
-                if(value[filterField] == filter){
-                    if(filterByParent == ""){
-                        filteredDict[key] = value;
-                    }
-                    else if(learningType != "Skill" && value["parentID"] == filterByParent){
-                        filteredDict[key] = value;
-                    }
-                    
-                }
-            }
-        }
         else{
-            throw new ArgumentException($"{filterField} is not a valid filter for {learningType}");  
+            return dataIO.GetFilteredDBResults(learningType, filters);
         }
-        return filteredDict;
     }
     
     public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
         // the list and dictionary can then be updated using that id
         // update list
         List<string> learningHeaders = headersDict[learningType];
-        string learningString = FormatForDataStore(learningID, learningMetadata, learningHeaders);
+        string learningString = FormatAsList(learningID, learningMetadata, learningHeaders);
         // update the learnings lists
-        SaveOrUpdateLearningsList(learningType, learningString, learningID);
+        SaveOrUpdateLearningsList(learningType, learningID);
         // update dict
         learningsDict[learningType][learningID] = learningMetadata;
-        List<string> learningsWithHeader = Enumerable.Concat(
-            new List<string>{$"{string.Join("|||", headersDict[learningType])}"}, 
-            GetLearningTypeList(learningType)).ToList();
         // save back to data store
-        dataIO.UpdateRecord(filenameDict[learningType], learningsWithHeader);
+        dataIO.UpdateRecord(learningID, learningMetadata, learningType);
     }
 
     public void UpdateNote(string noteID, Dictionary<string, string> noteMetadata){
-        // the list and dictionary can then be updated using that id
         // update list
         List<string> headers = headersDict["Note"];
-        string noteString = FormatForDataStore(noteID, noteMetadata, headers);
+        string noteString = FormatAsList(noteID, noteMetadata, headers);
         // update the learnings lists
         SaveOrUpdateNotesList(noteString, noteID);
         // update dict
         notesDict[noteID] = noteMetadata;
-        List<string> notesWithHeader = Enumerable.Concat(
-            new List<string>{$"{string.Join("|||", headersDict["Note"])}"}, 
-            Notes).ToList();
-
         // save back to data store
-        dataIO.UpdateRecord(filenameDict["Note"], notesWithHeader);
+        dataIO.UpdateRecord(noteID, noteMetadata, "Note");
     }
 
     public void DeleteLearning(string learningId, string learningType){
@@ -266,10 +221,9 @@ public class DataManager{
         // update the learning list
         UpdateLearningList(learningType, learningsList);
         // update the learning dictionary
-        learningsDict[learningType] = FormatForScript(learningsList, headersDict[learningType]);
+        learningsDict[learningType].Remove(learningId);
         // save to data store
-        learningsList.Insert(0, $"{string.Join("|||", headersDict[learningType])}");
-        dataIO.UpdateRecord(filenameDict[learningType], learningsList);
+        dataIO.DeleteRecord(learningType, learningId);
     }
 
     public void UpdateLearningList(string learningType, List<string> learningInfo){
@@ -293,10 +247,7 @@ public class DataManager{
         // update the learning dictionary
         notesDict.Remove(noteId);
         // save to data store
-        List<string> notesWithHeader = Enumerable.Concat(
-            new List<string>{$"{string.Join("|||", headersDict["Note"])}"}, 
-            Notes).ToList();
-        dataIO.UpdateRecord(filenameDict["Note"], notesWithHeader);
+        dataIO.DeleteRecord("Note", noteId);
     }
 
     public Dictionary<string, Dictionary<string, string>> FilterByDictValue(Dictionary<string, Dictionary<string, string>> dictToFilter, string filterValueName, string filterValue){
@@ -311,5 +262,14 @@ public class DataManager{
         // back to a dictionary
         var newDictionary = filterList.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);  
         return newDictionary;   
+    }
+
+    public List<string> FormatAllAsList(Dictionary<string, Dictionary<string, string>> dictToFormat, List<string> headers){
+        List<string> formattedList = new List<string>();
+        foreach(KeyValuePair<string, Dictionary<string, string>> entry in dictToFormat){
+            string indivValue = FormatAsList(entry.Key, entry.Value, headers);
+            formattedList.Add(indivValue);
+        }
+        return formattedList;
     }
 }
