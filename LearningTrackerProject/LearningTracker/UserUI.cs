@@ -135,10 +135,15 @@ public class UserUI{
         do{
             string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
             string learningId = GetLearningInDialogue(learningType);
-            Console.WriteLine($"{learningType} ID: {learningId}");
-            Dictionary<string, string> learningInfo = learningManager.GetLearningByID(learningType, learningId);
-            foreach(KeyValuePair<string, string> entry in learningInfo){
-                Console.WriteLine($"{entry.Key}: {entry.Value}");
+            if(learningId != ""){
+                Console.WriteLine($"{learningType} ID: {learningId}");
+                Dictionary<string, string> learningInfo = learningManager.GetLearningByID(learningType, learningId);
+                foreach(KeyValuePair<string, string> entry in learningInfo){
+                    Console.WriteLine($"{entry.Key}: {entry.Value}");
+                }
+            }
+            else{
+                Console.WriteLine($"Unable to view {learningType}");
             }
             
             keepViewing = ChooseFromSelection(
@@ -217,23 +222,27 @@ public class UserUI{
             string learningType = GetLearningType();
             // get the name of the learning
             string learningId = GetLearningInDialogue(learningType);
-            Dictionary<string, string> learning = learningManager.GetLearningByID(learningType, learningId);
-            // choose which field to edit
-            string editField = ChooseFromSelection("Choose what field to edit:", learning.Keys.ToList());
-            // overwrite or add on
-            string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
-            Console.WriteLine($"Existing field content: {learning[editField]}");
-            string newContent = GetTextFromUser(editField);
-            if(editKind == "Overwrite"){
-                learning[editField] = newContent;
+            if(learningId != ""){
+                Dictionary<string, string> learning = learningManager.GetLearningByID(learningType, learningId);
+                // choose which field to edit
+                string editField = ChooseFromSelection("Choose what field to edit:", learning.Keys.ToList());
+                // overwrite or add on
+                string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
+                Console.WriteLine($"Existing field content: {learning[editField]}");
+                string newContent = GetTextFromUser(editField);
+                if(editKind == "Overwrite"){
+                    learning[editField] = newContent;
+                }
+                else {
+                    learning[editField]+=newContent;
+                }
+                Console.WriteLine($"Updated {editField}: {learning[editField]}");
+                // save back to data store
+                learningManager.UpdateLearning(learningType, learningId, learning);
             }
-            else {
-                learning[editField]+=newContent;
+            else{
+                Console.WriteLine($"Unable to edit {learningType} as it could not be found.");
             }
-            Console.WriteLine($"Updated {editField}: {learning[editField]}");
-            // save back to data store
-            learningManager.UpdateLearning(learningType, learningId, learning);
-            
             string editMore = ChooseFromSelection("Edit other learnings?", new List<string>{"Yes", "No"});
             if(editMore == "No"){
                 editMoreLearnings = "BACK";
@@ -328,7 +337,7 @@ public class UserUI{
                 Console.WriteLine($"Required! Name of goal related to {learningType}.");
             }
             string goalId = LookupLearningByName("Goal", skillId);
-            if(learningType == "Goal"){
+            if(learningType == "Goal" && skillId != ""){
                 learningId = goalId;
             }
             else if(learningType == "Milestone" && goalId != ""){
@@ -349,10 +358,12 @@ public class UserUI{
             if(notesInfo.Keys.Count == 0){
                 Console.WriteLine($"No notes associated with this {learningType}.");
             }
-            foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
-                Console.WriteLine($"Note ID: {entry.Key}");
-                foreach(KeyValuePair<string, string> subentry in entry.Value){
-                    Console.WriteLine($"{subentry.Key}: {subentry.Value}");
+            else{
+                foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
+                    Console.WriteLine($"Note ID: {entry.Key}");
+                    foreach(KeyValuePair<string, string> subentry in entry.Value){
+                        Console.WriteLine($"{subentry.Key}: {subentry.Value}");
+                    }
                 }
             }
             
