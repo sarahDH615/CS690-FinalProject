@@ -63,7 +63,13 @@ public class LearningsManager{
     }
 
     public Dictionary<string, string> GetLearningByID(string learningType, string learningID){
-        return dataManager.learningsDict[learningType][learningID];
+        try{
+            return dataManager.learningsDict[learningType][learningID];
+        }
+        catch{
+            Console.WriteLine($"No {learningType} associated with ID {learningID}");
+            return new Dictionary<string, string>{};
+        }
     }
 
     public void SaveLearning(string learningType, Dictionary<string, string> learningMetadata){
