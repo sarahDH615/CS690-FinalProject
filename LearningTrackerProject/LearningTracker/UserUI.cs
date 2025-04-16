@@ -336,6 +336,17 @@ public class UserUI{
                 foreach(KeyValuePair<string, string> entry in learningInfo){
                     Console.WriteLine($"{entry.Key}: {entry.Value}");
                 }
+
+                if(learningType == "Skill" || learningType == "Goal"){
+                    Console.WriteLine("Descendant learnings:");
+                    List<string> columns = new List<string>{"Milestones"};
+                    if(learningType == "Skill"){
+                        columns.Insert(0, "Goals");
+                    }
+                    Dictionary<string, List<string>> descendants = learningManager.GetDescendantLearningNames(learningType, learningId);
+                    // DisplayDescendantsTree(descendants);
+                    DisplayDescendantsTable(descendants, columns);
+                }
             }
             else{
                 AnsiConsole.Write(new Markup($"[yellow]Unable to view {learningType}[/]"));
@@ -349,6 +360,47 @@ public class UserUI{
         menuHistory.RemoveAt(menuHistory.Count-1); 
 
         return keepViewing;
+    }
+
+    void DisplayDescendantsTree(Dictionary<string, List<string>> descendants){
+        // var root = new Tree("");
+        foreach(KeyValuePair<string, List<string>> descendant in descendants){
+            var root = new Tree(descendant.Key);
+            // var descNode = root.AddNode(descendant.Key);
+            if(descendant.Value.Count > 0){
+                foreach(string descendantChild in descendant.Value){
+                    root.AddNode(descendantChild);
+                    // descNode.AddNode(descendantChild);
+                }
+            }
+            // Render the tree
+            AnsiConsole.Write(root);
+        }
+    }
+
+    void DisplayDescendantsTable(Dictionary<string, List<string>> descendants, List<string> columns){
+        var table = new Table();
+        foreach(string column in columns){
+            table.AddColumn(column);
+        }
+        foreach(KeyValuePair<string, List<string>> descendant in descendants){
+            if(columns.Count == 2){
+                if(descendant.Value.Count > 0){
+                    table.AddRow(descendant.Key, descendant.Value[0]);
+                    for(int i=1; i < descendant.Value.Count; i++ ){
+                        table.AddRow("   ", descendant.Value[i]);
+                    }
+                }
+                else{
+                    table.AddRow(descendant.Key, "");
+                }
+            }
+            else{
+                table.AddRow(descendant.Key);
+            }
+        }
+        // Render the tree
+        AnsiConsole.Write(table);
     }
 
     public string AddLearning(){
@@ -497,6 +549,7 @@ public class UserUI{
     }
 
     // ---- ADDITIONAL LEVEL MENUS ---- //
+    // ---- PROGRESS ---- //
     public void ViewSummaries(string filter=""){
         if(filter == ""){
             AddToAndDisplayMenuHistory("Update Progress Menu: View All");
