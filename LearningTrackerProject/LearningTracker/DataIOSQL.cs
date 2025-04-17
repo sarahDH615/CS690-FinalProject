@@ -16,40 +16,44 @@ public class DataIOSQL{
             {
                 "Skill", @"
                     CREATE TABLE IF NOT EXISTS skills(
-                    ID INTEGER PRIMARY KEY,
+                    ID INTEGER PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL,
                     Description TEXT NOT NULL,
-                    Status TEXT NOT NULL
+                    Status TEXT NOT NULL,
+                    UNIQUE(Name)
                 )"
             },
             {
                 "Goal", @"
                     CREATE TABLE IF NOT EXISTS goals(
-                    ID INTEGER PRIMARY KEY,
+                    ID INTEGER PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL,
                     Description TEXT NOT NULL,
                     Status TEXT NOT NULL,
-                    ParentID TEXT NOT NULL
+                    ParentID TEXT NOT NULL,
+                    UNIQUE(Name, ParentID)
                 )"
             },
             {
                 "Milestone", @"
                     CREATE TABLE IF NOT EXISTS milestones(
-                    ID INTEGER PRIMARY KEY,
+                    ID INTEGER PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL,
                     Description TEXT NOT NULL,
                     Status TEXT NOT NULL,
-                    ParentID TEXT NOT NULL
+                    ParentID TEXT NOT NULL,
+                    UNIQUE(Name, ParentID)
                 )"
             },
             {
                 "Note", @"
                     CREATE TABLE IF NOT EXISTS notes(
-                    ID INTEGER PRIMARY KEY,
+                    ID INTEGER PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL,
                     Description TEXT NOT NULL,
                     Body TEXT NOT NULL,
-                    ConnectedLearningCode TEXT NOT NULL
+                    ConnectedLearningCode TEXT NOT NULL,
+                    UNIQUE(Name, ConnectedLearningCode)
                 )"
             }
         };
@@ -163,9 +167,12 @@ public class DataIOSQL{
 
     public Dictionary<string, Dictionary<string, string>> GetDataFromDB(string databaseName, string query, List<string> desiredValues){
         Dictionary<string, Dictionary<string, string>> resultsDict = new Dictionary<string, Dictionary<string, string>>();
+        if(databaseName.EndsWith(".db") is false && databaseNameDict.Keys.Contains(databaseName)){
+            databaseName = databaseNameDict[databaseName];
+        }
         try{
             // Open a new database connection
-            using var connection = new SqliteConnection($@"Data Source={databaseNameDict[databaseName]}");
+            using var connection = new SqliteConnection($@"Data Source={databaseName}");
             connection.Open();
             using var command = new SqliteCommand(query, connection);
             SqliteDataReader reader = command.ExecuteReader();

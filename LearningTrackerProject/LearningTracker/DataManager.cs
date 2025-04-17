@@ -9,8 +9,8 @@ public class DataManager{
     };
     public Dictionary<string, List<string>> headersDict = new Dictionary<string, List<string>>{
         {"Skill", new List<string>{"ID", "Name", "Description", "Status"}},
-        {"Goal", new List<string>{"ID", "Name", "Description", "Status", "parentID"}},
-        {"Milestone", new List<string>{"ID", "Name", "Description", "Status", "parentID"}},
+        {"Goal", new List<string>{"ID", "Name", "Description", "Status", "ParentID"}},
+        {"Milestone", new List<string>{"ID", "Name", "Description", "Status", "ParentID"}},
         {"Note", new List<string>{"ID", "Name", "Description", "Body"}}
     };
     DataIOSQL dataIO = new DataIOSQL();
@@ -31,7 +31,7 @@ public class DataManager{
         Skills = FormatAllAsList(learningsDict["Skill"], headersDict["Skill"]);
         Goals = FormatAllAsList(learningsDict["Goal"], headersDict["Goal"]);
         Milestones = FormatAllAsList(learningsDict["Milestone"], headersDict["Milestone"]);
-        Notes = FormatAllAsList(learningsDict["Note"], headersDict["Note"]);
+        Notes = FormatAllAsList(notesDict, headersDict["Note"]);
 
         
     }
