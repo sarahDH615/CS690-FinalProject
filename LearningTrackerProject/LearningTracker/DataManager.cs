@@ -36,25 +36,6 @@ public class DataManager{
         
     }
 
-    // public Dictionary<string, Dictionary<string, string>> GetLearning(string learningType){
-    //     List<string> learningsList = dataIO.GetOrCreateFile(filenameDict[learningType], headersDict[learningType]);
-    //     return FormatAsDict(learningsList, headersDict[learningType]);
-    // }
-
-    // public string GenerateLearningID(string learningType){
-    //     int count = 0;
-    //     if(learningType == "Skill"){
-    //         count = Skills.Count + 1;
-    //     }
-    //     else if(learningType == "Goal"){
-    //         count = Goals.Count + 1;
-    //     }
-    //     else if(learningType == "Milestone"){
-    //         count = Milestones.Count + 1;
-    //     }
-    //     return count.ToString();
-    // }
-
     public string CreateNoteID(List<string>idComponents, int componentLength=3){
         List<string> components = new List<string>();
         for(int segment = 0; segment < componentLength; segment++){
@@ -176,14 +157,37 @@ public class DataManager{
     }
 
     public Dictionary<string, Dictionary<string, string>> GetFilteredLearnings(string learningType, Dictionary<string, string> filters){
-        Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
-        learningDict = learningsDict[learningType];
         if(filters.Keys.Count == 0){
-            return learningDict;
+            return learningsDict[learningType];;
         }
         else{
             return dataIO.GetFilteredDBResults(learningType, filters);
         }
+    }
+
+    public List<Dictionary<string, Dictionary<string, string>>> GetFilteredLearningsAndDescendants(string learningType, Dictionary<string, string> filters){
+        List<Dictionary<string, Dictionary<string, string>>> learningsList = new List<Dictionary<string, Dictionary<string, string>>>{};
+        // get top level
+        Dictionary<string, Dictionary<string, string>> topLevelResults;
+        if(filters.Keys.Count == 0){
+            topLevelResults = learningsDict[learningType];
+        }
+        else{
+            topLevelResults = dataIO.GetFilteredDBResults(learningType, filters);
+        }
+        learningsList.Add(topLevelResults);
+
+        if(learningType == "Milestone"){
+            return learningsList;
+        }
+        // get second level if appropriate
+
+        if(learningType == "Goal"){
+            return learningsList;
+        }
+        // get third level if appropriate
+
+        return learningsList;
     }
     
     public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
