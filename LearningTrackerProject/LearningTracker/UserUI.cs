@@ -163,14 +163,16 @@ public class UserUI{
             if(action != "EXIT" && action != "BACK"){
                 // get list of those learnings
                 string learningId = LookupLearningByName(action);
-                // get learning record
-                Dictionary<string, string> learningRecord = learningManager.GetLearningByID(action, learningId);
-                // give option to change
-                string newStatus = GetStatusForDB();
-                // no need to actually change in the database if the status is already equal to the supposed update
-                if(learningRecord["Status"] != newStatus){
-                    learningRecord["Status"] = newStatus;
-                    learningManager.UpdateLearning(action, learningId, learningRecord);
+                if(learningId != ""){
+                    // get learning record
+                    Dictionary<string, string> learningRecord = learningManager.GetLearningByID(action, learningId);
+                    // give option to change
+                    string newStatus = GetStatusForDB();
+                    // no need to actually change in the database if the status is already equal to the supposed update
+                    Console.WriteLine(newStatus);
+                    if(learningRecord["Status"] != newStatus){
+                        learningManager.UpdateLearning(action, learningId, new Dictionary<string, string>{{"Status", newStatus}});
+                    }
                 }
             }
         }
@@ -186,34 +188,9 @@ public class UserUI{
         do{
             string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
             string learningId = GetLearningInDialogue(learningType);
-            // show notes related to that learning
-            Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
-            if(notesInfo.Keys.Count == 0){
-                AnsiConsole.Write(new Markup($"[yellow]No notes associated with this {learningType}.{Environment.NewLine}[/]"));
+            if(learningId != ""){
+                ShowNotes(learningType, learningId);
             }
-            else{
-                foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
-                    Console.WriteLine();
-                    var rule = new Rule($"[dim]Note ID: {entry.Key}[/]");
-                    rule.Justification = Justify.Center;
-                    AnsiConsole.Write(rule);
-                    AnsiConsole.Write(new Markup($"[bold underline]Note ID[/]: {entry.Key}{Environment.NewLine}"));
-                    foreach(KeyValuePair<string, string> subentry in entry.Value){
-                        if(subentry.Key == "Body"){
-                            AnsiConsole.Write(new Markup($"[bold]Body[/]:{Environment.NewLine}"));
-                            var panel = new Panel(subentry.Value);
-                            panel.Border = BoxBorder.Rounded;
-                            panel.Padding = new Padding(2, 2, 2, 2);
-                            AnsiConsole.Write(panel);
-                        }
-                        else{
-                            AnsiConsole.Write(new Markup($"[bold]{subentry.Key}[/]: {subentry.Value}{Environment.NewLine}"));
-                        }
-                    }
-                    Console.WriteLine();
-                }
-            }
-            
             keepViewing = ChooseFromSelection(
                 "Select View More to continue viewing notes, or BACK to exit View Notes Menu, or EXIT to exit LearningTracker:", 
                 new List<string>{"View More", "BACK", "EXIT"});
@@ -360,47 +337,6 @@ public class UserUI{
         menuHistory.RemoveAt(menuHistory.Count-1); 
 
         return keepViewing;
-    }
-
-    void DisplayDescendantsTree(Dictionary<string, List<string>> descendants){
-        // var root = new Tree("");
-        foreach(KeyValuePair<string, List<string>> descendant in descendants){
-            var root = new Tree(descendant.Key);
-            // var descNode = root.AddNode(descendant.Key);
-            if(descendant.Value.Count > 0){
-                foreach(string descendantChild in descendant.Value){
-                    root.AddNode(descendantChild);
-                    // descNode.AddNode(descendantChild);
-                }
-            }
-            // Render the tree
-            AnsiConsole.Write(root);
-        }
-    }
-
-    void DisplayDescendantsTable(Dictionary<string, List<string>> descendants, List<string> columns){
-        var table = new Table();
-        foreach(string column in columns){
-            table.AddColumn(column);
-        }
-        foreach(KeyValuePair<string, List<string>> descendant in descendants){
-            if(columns.Count == 2){
-                if(descendant.Value.Count > 0){
-                    table.AddRow(descendant.Key, descendant.Value[0]);
-                    for(int i=1; i < descendant.Value.Count; i++ ){
-                        table.AddRow("   ", descendant.Value[i]);
-                    }
-                }
-                else{
-                    table.AddRow(descendant.Key, "");
-                }
-            }
-            else{
-                table.AddRow(descendant.Key);
-            }
-        }
-        // Render the tree
-        AnsiConsole.Write(table);
     }
 
     public string AddLearning(){
@@ -562,7 +498,6 @@ public class UserUI{
             Console.WriteLine($"No summaries with status {filter}");
         }
         foreach(string summary in summaries){
-            // Console.WriteLine(summary);
             Tree summaryTree = MakeProgressTree(summary);
             AnsiConsole.Write(summaryTree);
         }
@@ -570,6 +505,36 @@ public class UserUI{
     }
 
     // ---- HELPER FUNCTIONS BELOW ---- //
+    public void ShowNotes(string learningType, string learningId){
+        // show notes related to that learning
+        Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
+        if(notesInfo.Keys.Count == 0){
+            AnsiConsole.Write(new Markup($"[yellow]No notes associated with this {learningType}.{Environment.NewLine}[/]"));
+        }
+        else{
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
+                Console.WriteLine();
+                var rule = new Rule($"[dim]Note ID: {entry.Key}[/]");
+                rule.Justification = Justify.Center;
+                AnsiConsole.Write(rule);
+                AnsiConsole.Write(new Markup($"[bold underline]Note ID[/]: {entry.Key}{Environment.NewLine}"));
+                foreach(KeyValuePair<string, string> subentry in entry.Value){
+                    if(subentry.Key == "Body"){
+                        AnsiConsole.Write(new Markup($"[bold]Body[/]:{Environment.NewLine}"));
+                        var panel = new Panel(subentry.Value);
+                        panel.Border = BoxBorder.Rounded;
+                        panel.Padding = new Padding(2, 2, 2, 2);
+                        AnsiConsole.Write(panel);
+                    }
+                    else{
+                        AnsiConsole.Write(new Markup($"[bold]{subentry.Key}[/]: {subentry.Value}{Environment.NewLine}"));
+                    }
+                }
+                Console.WriteLine();
+            }
+        }
+    }
+    
     public Tree MakeProgressTree(string progressSummary){
         List<string> summarySplit = progressSummary.Split(Environment.NewLine).ToList();
         var root = new Tree(FormatProgressStatusText(summarySplit[0]));
@@ -613,6 +578,47 @@ public class UserUI{
         AnsiConsole.Write(new Markup($"[bold dim]{title}[/][dim] {response}[/]"));
         Console.WriteLine();
         return response;
+    }
+
+    void DisplayDescendantsTree(Dictionary<string, List<string>> descendants){
+        // var root = new Tree("");
+        foreach(KeyValuePair<string, List<string>> descendant in descendants){
+            var root = new Tree(descendant.Key);
+            // var descNode = root.AddNode(descendant.Key);
+            if(descendant.Value.Count > 0){
+                foreach(string descendantChild in descendant.Value){
+                    root.AddNode(descendantChild);
+                    // descNode.AddNode(descendantChild);
+                }
+            }
+            // Render the tree
+            AnsiConsole.Write(root);
+        }
+    }
+
+    void DisplayDescendantsTable(Dictionary<string, List<string>> descendants, List<string> columns){
+        var table = new Table();
+        foreach(string column in columns){
+            table.AddColumn(column);
+        }
+        foreach(KeyValuePair<string, List<string>> descendant in descendants){
+            if(columns.Count == 2){
+                if(descendant.Value.Count > 0){
+                    table.AddRow(descendant.Key, descendant.Value[0]);
+                    for(int i=1; i < descendant.Value.Count; i++ ){
+                        table.AddRow("   ", descendant.Value[i]);
+                    }
+                }
+                else{
+                    table.AddRow(descendant.Key, "");
+                }
+            }
+            else{
+                table.AddRow(descendant.Key);
+            }
+        }
+        // Render the tree
+        AnsiConsole.Write(table);
     }
 
     public string GetTextFromUser(string fieldName){
@@ -746,7 +752,7 @@ public class UserUI{
         string status = ChooseFromSelection(
             "Choose new status:", 
             new List<string>{"[green]Complete![/]", "[yellow]Return to To-Do[/]"});
-        if(status == "Complete!"){
+        if(status.Contains("Complete!")){
             return "Completed";
         }
         else{

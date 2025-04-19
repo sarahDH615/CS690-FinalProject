@@ -156,51 +156,53 @@ public class DataManager{
         return recordString;
     }
 
-    public Dictionary<string, Dictionary<string, string>> GetFilteredLearnings(string learningType, Dictionary<string, string> filters){
+    public Dictionary<string, Dictionary<string, string>> GetFilteredLearnings(string learningType, Dictionary<string, string> filters, string comparer="="){
         if(filters.Keys.Count == 0){
-            return learningsDict[learningType];;
+            return learningsDict[learningType];
         }
         else{
-            return dataIO.GetFilteredDBResults(learningType, filters);
+            return dataIO.GetFilteredDBResults(learningType, filters, comparer);
         }
     }
 
-    public List<Dictionary<string, Dictionary<string, string>>> GetFilteredLearningsAndDescendants(string learningType, Dictionary<string, string> filters){
-        List<Dictionary<string, Dictionary<string, string>>> learningsList = new List<Dictionary<string, Dictionary<string, string>>>{};
-        // get top level
-        Dictionary<string, Dictionary<string, string>> topLevelResults;
-        if(filters.Keys.Count == 0){
-            topLevelResults = learningsDict[learningType];
-        }
-        else{
-            topLevelResults = dataIO.GetFilteredDBResults(learningType, filters);
-        }
-        learningsList.Add(topLevelResults);
+    // public List<Dictionary<string, Dictionary<string, string>>> GetFilteredLearningsAndDescendants(string learningType, Dictionary<string, string> filters){
+    //     List<Dictionary<string, Dictionary<string, string>>> learningsList = new List<Dictionary<string, Dictionary<string, string>>>{};
+    //     // get top level
+    //     Dictionary<string, Dictionary<string, string>> topLevelResults = GetFilteredLearnings(learningType, filters);
+    //     learningsList.Add(topLevelResults);
 
-        if(learningType == "Milestone"){
-            return learningsList;
-        }
-        // get second level if appropriate
+    //     if(learningType == "Milestone"){
+    //         return learningsList;
+    //     }
+    //     // get second level if appropriate
+    //     Dictionary<string, Dictionary<string, string>> secondLevelResults = GetFilteredLearnings(learningType, filters);
+    //     learningsList.Add(secondLevelResults);
 
-        if(learningType == "Goal"){
-            return learningsList;
-        }
-        // get third level if appropriate
+    //     if(learningType == "Goal"){
+    //         return learningsList;
+    //     }
+    //     // get third level if appropriate
+    //     Dictionary<string, Dictionary<string, string>> thirdLevelResults = GetFilteredLearnings(learningType, filters);
+    //     learningsList.Add(thirdLevelResults);
 
-        return learningsList;
-    }
+    //     return learningsList;
+    // }
     
     public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
-        // the list and dictionary can then be updated using that id
-        // update list
+        // update dict with any new values
+        foreach(KeyValuePair<string, string> pair in learningMetadata){
+            learningsDict[learningType][learningID][pair.Key] = pair.Value;
+        }
+        // reformat dict as string and save to list
         List<string> learningHeaders = headersDict[learningType];
-        string learningString = FormatAsList(learningID, learningMetadata, learningHeaders);
-        // update the learnings lists
-        SaveOrUpdateLearningsList(learningType, learningID);
-        // update dict
-        learningsDict[learningType][learningID] = learningMetadata;
-        // save back to data store
-        dataIO.UpdateRecord(learningID, learningMetadata, learningType);
+        string learningString = FormatAsList(learningID, learningsDict[learningType][learningID], learningHeaders);
+        SaveOrUpdateLearningsList(learningType, learningString, learningID);
+        // save back to db
+        Dictionary<string, string> formattedDict = new Dictionary<string, string>{};
+        foreach(KeyValuePair<string, string> pair in learningMetadata){
+            formattedDict[pair.Key] = FormatStringForDBFilter(pair.Value);
+        }
+        dataIO.UpdateRecord(learningID, formattedDict, learningType);
     }
 
     public void UpdateNote(string noteID, Dictionary<string, string> noteMetadata){
@@ -276,4 +278,22 @@ public class DataManager{
         }
         return formattedList;
     }
+
+    public Dictionary<string, string> MakeFilterDict(string filterName, string filter){
+        Dictionary<string, string> filterDict = new Dictionary<string, string>{};
+        if(filter != ""){
+            filterDict[filterName] = FormatStringForDBFilter(filter);
+        }
+        return filterDict;
+    }
+
+    public string FormatStringForDBFilter(string filterValue){
+        int i = 0;
+        bool result = int.TryParse(filterValue, out i);
+        if(result){
+            return filterValue;
+        }
+        return $"'{filterValue}'";
+    }
+
 }

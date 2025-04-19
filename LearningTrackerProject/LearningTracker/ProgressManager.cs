@@ -9,27 +9,28 @@ public class ProgressManager{
         
         // eventual output: name : status
         // need ids to look up goals and milestones
-        string filterName;
+        Dictionary<string, string> filterDict;
         if(filter == ""){
-            filterName = "";
+            filterDict = new Dictionary<string, string>{};
         }
         else{
-            filterName = "Status";
+            filterDict = new Dictionary<string, string>{{"Status", $"'{filter}'"}};
         }
-        Dictionary<string, Dictionary<string, string>> skills = dataManager.GetFilteredLearnings("Skill", new Dictionary<string, string>{{filterName, filter}});
+        Dictionary<string, Dictionary<string, string>> skills = dataManager.GetFilteredLearnings("Skill", filterDict);
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in skills ){
             string learningString = ""; 
             string skillId = kvp.Key;
             learningString+= $"{kvp.Value["Name"]}: {kvp.Value["Status"]}{Environment.NewLine}";
-            Dictionary<string, Dictionary<string, string>> goals = dataManager.GetFilteredLearnings("Goal", new Dictionary<string, string>{{filterName, filter}, {"ParentID", skillId}});
+            filterDict["ParentID"] = skillId; //  add to dict
+            Dictionary<string, Dictionary<string, string>> goals = dataManager.GetFilteredLearnings("Goal", filterDict);
             foreach( KeyValuePair<string, Dictionary<string, string>> pair in goals ){
                 string goalId = pair.Key;
                 learningString+= $"\t{pair.Value["Name"]}: {pair.Value["Status"]}{Environment.NewLine}";
-                Dictionary<string, Dictionary<string, string>> milestones = dataManager.GetFilteredLearnings("Milestone", new Dictionary<string, string>{{filterName, filter}, {"ParentID", goalId}});
+                filterDict["ParentID"] = goalId; //  replace val in dict
+                Dictionary<string, Dictionary<string, string>> milestones = dataManager.GetFilteredLearnings("Milestone", filterDict);
                 foreach( Dictionary<string, string> mpair in milestones.Values ){
                     learningString+= $"\t\t{mpair["Name"]}: {mpair["Status"]}{Environment.NewLine}";
                 }
-
             }
             learningList.Add(learningString);
         }

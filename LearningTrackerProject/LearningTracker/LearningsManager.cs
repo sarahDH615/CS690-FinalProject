@@ -46,9 +46,10 @@ public class LearningsManager{
         // Dictionary<string, Dictionary<string, string>> learningDict = new Dictionary<string, Dictionary<string, string>>{};
         List<string> learningIDs = new List<string>();
         List<string> learningNames = new List<string>();
-        Dictionary<string, Dictionary<string, string>> learningDict = dataManager.GetFilteredLearnings(learningType, new Dictionary<string, string>{{"parentID", filterParentId}});
+        Dictionary<string, string> filterDict = dataManager.MakeFilterDict("ParentID", filterParentId);
         
-
+        Dictionary<string, Dictionary<string, string>> learningDict = dataManager.GetFilteredLearnings(learningType, filterDict);
+        
         foreach( KeyValuePair<string, Dictionary<string, string>> kvp in learningDict ){
             string key = kvp.Key;
             Dictionary<string, string> value = kvp.Value;
@@ -101,8 +102,9 @@ public class LearningsManager{
         dataManager.SaveLearning(learningType, learningMetadata);
     }
 
-    public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
-        dataManager.UpdateLearning(learningType, learningID, learningMetadata);
+    public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> updatedContent){
+        Console.WriteLine($"{string.Join(", ", updatedContent.Keys)}: {string.Join(", ", updatedContent.Values)}");
+        dataManager.UpdateLearning(learningType, learningID, updatedContent);
     }
 
     public void DeleteLearning(string learningId, string learningType){

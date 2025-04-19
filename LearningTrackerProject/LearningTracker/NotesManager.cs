@@ -19,16 +19,17 @@ public class NotesManager{
 
     public Dictionary<string, Dictionary<string, string>> GetNotes(string relatedLearningType="", string relatedLearningID=""){
         if(relatedLearningID !=""){
-            int index = 0; // default, skills
+            List<string> parts = new List<string>{"xx", "xx", "xx"};
+            string matchIdPattern = relatedLearningID; // default for milestone
             if(relatedLearningType == "Goal"){
-                index += 1;
+                matchIdPattern += "-xx";
             }
-            else if(relatedLearningType == "Milestone"){
-                index += 2;
+            else if(relatedLearningType == "Skill"){
+                matchIdPattern += "-xx-xx";
             }
 
             List<Dictionary<string, Dictionary<string, string>>> relatedNotes = new List<Dictionary<string, Dictionary<string, string>>>{};
-            var filteredNotes = dataManager.notesDict.Where(kvp => kvp.Key.Split("-").ToList()[index] == relatedLearningID);
+            var filteredNotes = dataManager.notesDict.Where(kvp => kvp.Value["ConnectedLearningCode"].EndsWith(matchIdPattern));
             // back to a dictionary
             var filteredNotesDict = filteredNotes.ToDictionary(kvp => kvp.Key, kvp => kvp.Value); 
             return filteredNotesDict;

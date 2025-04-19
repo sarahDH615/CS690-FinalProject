@@ -293,19 +293,6 @@ public class DataIOSQL{
     public Dictionary<string, Dictionary<string, string>> GetOneResultFromTableByID(string tableName, string recordId){
         string databaseName;
         List<string> desiredColumns = new List<string>();
-        // if(tableName == "notes"){
-        //     databaseName = "notes.db";
-        //     desiredColumns = new List<string>{"ID", "Name", "Description", "Body", "ConnectedLearningCode"};
-        // }
-        // else{
-        //     databaseName = "learnings.db";
-        //     if(tableName == "skills"){
-        //         desiredColumns = new List<string>{"ID", "Name", "Description", "Status"};
-        //     }
-        //     else{
-        //         desiredColumns = new List<string>{"ID", "Name", "Description", "Status", "ParentID"};
-        //     }
-        // }
         var setupVars = GetSetupForDBSearch(tableName);
         databaseName = setupVars.dbName;
         desiredColumns = setupVars.columns;
@@ -364,7 +351,7 @@ public class DataIOSQL{
         }
     }
 
-    public Dictionary<string, Dictionary<string, string>> GetFilteredDBResults(string recordType, Dictionary<string, string> filters){
+    public Dictionary<string, Dictionary<string, string>> GetFilteredDBResults(string recordType, Dictionary<string, string> filters, string comparative="="){
         string tableName = GetTableName(recordType);
         var setupVars = GetSetupForDBSearch(tableName);
         string databaseName = setupVars.dbName;
@@ -372,7 +359,7 @@ public class DataIOSQL{
 
         List<string> filterList = new List<string>();
         foreach(KeyValuePair<string, string> entry in filters){
-            filterList.Add($"{entry.Key} = {entry.Value}");
+            filterList.Add($"{entry.Key} {comparative} {entry.Value}");
         }
 
         string selectFilteredResults = $"SELECT * FROM {tableName} WHERE {string.Join(" AND ", filterList)};";
