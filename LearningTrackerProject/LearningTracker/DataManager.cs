@@ -13,7 +13,7 @@ public class DataManager{
         {"Milestone", new List<string>{"ID", "Name", "Description", "Status", "ParentID"}},
         {"Note", new List<string>{"ID", "Name", "Description", "Body"}}
     };
-    DataIOSQL dataIO = new DataIOSQL();
+    DataIO dataIO = new DataIO();
     public List<string> Skills = new List<string>();
     public List<string> Goals = new List<string>();
     public List<string> Milestones = new List<string>();

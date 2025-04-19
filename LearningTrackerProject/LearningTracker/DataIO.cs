@@ -2,12 +2,12 @@ namespace LearningTracker;
 using System.IO;
 using Microsoft.Data.Sqlite;
 
-public class DataIOSQL{
+public class DataIO{
 
     public Dictionary<string, string> databaseNameDict = new Dictionary<string, string>{};
     public Dictionary<string, string> createTablesCommandsDicts = new Dictionary<string, string>{};
 
-    public DataIOSQL(){
+    public DataIO(){
         databaseNameDict = new Dictionary<string, string>{
             {"Note", "notes.db"},
             {"Learning", "learnings.db"}
@@ -371,7 +371,6 @@ public class DataIOSQL{
         }
 
         string selectFilteredResults = $"SELECT {returns} FROM {tableName} WHERE {string.Join(" AND ", filterList)};";
-        // Console.WriteLine(selectFilteredResults);
         
         return GetDataFromDB(databaseName, selectFilteredResults, desiredColumns);
     }
