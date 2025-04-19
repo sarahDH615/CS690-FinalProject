@@ -25,7 +25,7 @@ public class LearningsManager{
     public List<Dictionary<string, Dictionary<string, string>>> GetDescendantLearnings(string learningId, string learningType){
         List<Dictionary<string, Dictionary<string, string>>> relatedLearnings = new List<Dictionary<string, Dictionary<string, string>>>{};
         Dictionary<string, Dictionary<string, string>> filteredGoals = dataManager.FilterByDictValue(
-            dataManager.learningsDict["Goal"], "parentID", learningId);
+            dataManager.learningsDict["Goal"], "ParentID", learningId);
         relatedLearnings.Add(filteredGoals);
         
         if(learningType != "Goal"){
@@ -33,7 +33,7 @@ public class LearningsManager{
             if(goalIds.Count > 0){
                 foreach(string goalId in goalIds){
                     Dictionary<string, Dictionary<string, string>> filteredMilestones = dataManager.FilterByDictValue(
-                        dataManager.learningsDict["Milestone"], "parentID", goalId);
+                        dataManager.learningsDict["Milestone"], "ParentID", goalId);
                     relatedLearnings.Add(filteredMilestones);
                 }
             }
@@ -73,7 +73,7 @@ public class LearningsManager{
         Dictionary<string, string> relatedLearnings = new Dictionary<string, string>{};
         
         foreach( KeyValuePair<string, Dictionary<string, string>> learning in lookupDict ){
-            if(learning.Value["parentID"] == learningID){
+            if(learning.Value["ParentID"] == learningID){
                 relatedLearnings[learning.Key] = learning.Value["Name"];
             }
         }
@@ -103,7 +103,7 @@ public class LearningsManager{
     }
 
     public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> updatedContent){
-        Console.WriteLine($"{string.Join(", ", updatedContent.Keys)}: {string.Join(", ", updatedContent.Values)}");
+        // Console.WriteLine($"{string.Join(", ", updatedContent.Keys)}: {string.Join(", ", updatedContent.Values)}");
         dataManager.UpdateLearning(learningType, learningID, updatedContent);
     }
 

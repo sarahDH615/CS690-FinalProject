@@ -320,15 +320,11 @@ public class DataIOSQL{
         return (dbName, columns);
     }
 
-    // public Dictionary<string, Dictionary<string, string>> GetMostRecentValueFromTable(string tableName){
     public string GetMostRecentValueFromTable(string tableName){
         var setupVars = GetSetupForDBSearch(tableName);
         string databaseName = setupVars.dbName;
         List<string> desiredColumns = setupVars.columns;
-        // string selectMostRecentString = $"SELECT * FROM {tableName} WHERE count = (SELECT MAX(count) FROM {tableName});";
-        
-        // return GetDataFromDB(databaseName, selectMostRecentString, desiredColumns);
-        string selectMostRecentString = $"SELECT ID FROM {tableName} WHERE count = (SELECT MAX(count) FROM {tableName});";
+        string selectMostRecentString = $"SELECT MAX(ID) FROM {tableName};";
         
         return GetDataFromDB(databaseName, selectMostRecentString, desiredColumns).ToString()!;
     }
@@ -351,18 +347,31 @@ public class DataIOSQL{
         }
     }
 
-    public Dictionary<string, Dictionary<string, string>> GetFilteredDBResults(string recordType, Dictionary<string, string> filters, string comparative="="){
+    public List<string> GetFilterListForFilteredSearch(Dictionary<string, string> filters, string comparative="="){
+        List<string> filterList = new List<string>();
+        foreach(KeyValuePair<string, string> entry in filters){
+            filterList.Add($"{entry.Key} {comparative} {entry.Value}");
+        }
+        return filterList;
+    }
+
+    public Dictionary<string, Dictionary<string, string>> GetFilteredDBResults(string recordType, Dictionary<string, string> filters, string comparative="=", bool idOnly=false){
         string tableName = GetTableName(recordType);
         var setupVars = GetSetupForDBSearch(tableName);
         string databaseName = setupVars.dbName;
         List<string> desiredColumns = setupVars.columns;
 
-        List<string> filterList = new List<string>();
-        foreach(KeyValuePair<string, string> entry in filters){
-            filterList.Add($"{entry.Key} {comparative} {entry.Value}");
+        List<string> filterList = GetFilterListForFilteredSearch(filters, comparative);
+        string returns;
+        if(idOnly){
+            returns = "ID";
+        }
+        else{
+            returns = "*";
         }
 
-        string selectFilteredResults = $"SELECT * FROM {tableName} WHERE {string.Join(" AND ", filterList)};";
+        string selectFilteredResults = $"SELECT {returns} FROM {tableName} WHERE {string.Join(" AND ", filterList)};";
+        // Console.WriteLine(selectFilteredResults);
         
         return GetDataFromDB(databaseName, selectFilteredResults, desiredColumns);
     }

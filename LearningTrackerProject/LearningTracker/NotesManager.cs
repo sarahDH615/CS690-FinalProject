@@ -13,8 +13,46 @@ public class NotesManager{
         return metadataDictionary;
     }
 
+    public string MakeConnectedLearningId(List<string> idComponents, int componentLength=3){
+        List<string> components = new List<string>();
+        for(int segment = 0; segment < componentLength; segment++){
+            if(idComponents.Count > segment && idComponents[segment] != ""){
+                components.Add(idComponents[segment]);
+            }
+            else{
+                components.Add("xx");
+            }
+        }
+        return string.Join("-", components);
+    }
+
+    public int GetNumberOfExpectedRelatedLearningIds(string relatedLearningType){
+        if(relatedLearningType == "Skill"){
+            return 1;
+        }
+        else if(relatedLearningType == "Goal"){
+            return 2;
+        }
+        return 3;
+    }
+
     public void SaveNote(Dictionary<string, string> noteMetadata, List<string> idComponents){
-        dataManager.SaveNote(noteMetadata, idComponents);
+        string connLearningId = MakeConnectedLearningId(idComponents);
+        noteMetadata["ConnectedLearningCode"] = connLearningId;
+        dataManager.SaveNote(noteMetadata);
+    }
+
+    public string CheckForExistingNameLearningCombo(Dictionary<string, string> noteInfo){
+        return dataManager.UniquenessCheck(
+            "Note", 
+            new Dictionary<string, string>{
+                {"Name", noteInfo["Name"]}, 
+                {"ConnectedLearningCode", noteInfo["ConnectedLearningCode"]}});
+    }
+
+    public void SaveNote(Dictionary<string, string> noteMetadata){
+        // polymorphic - save note with connected learning code already added
+        dataManager.SaveNote(noteMetadata);
     }
 
     public Dictionary<string, Dictionary<string, string>> GetNotes(string relatedLearningType="", string relatedLearningID=""){
@@ -50,5 +88,4 @@ public class NotesManager{
     public void UpdateNote(string noteId, Dictionary<string, string> noteContent){
         dataManager.UpdateNote(noteId, noteContent);
     }
-
 }

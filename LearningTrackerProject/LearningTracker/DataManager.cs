@@ -1,11 +1,11 @@
 namespace LearningTracker;
 
 public class DataManager{
-    public Dictionary<string, string> filenameDict = new Dictionary<string, string>{
-        {"Skill", "Skills.txt"},
-        {"Goal", "Goals.txt"},
-        {"Milestone", "Milestones.txt"},
-        {"Note", "Notes.txt"}
+    public Dictionary<string, string> typesToTables = new Dictionary<string, string>{
+        {"Skill", "skills"},
+        {"Goal", "goals"},
+        {"Milestone", "milestones"},
+        {"Note", "notes"}
     };
     public Dictionary<string, List<string>> headersDict = new Dictionary<string, List<string>>{
         {"Skill", new List<string>{"ID", "Name", "Description", "Status"}},
@@ -67,11 +67,24 @@ public class DataManager{
 
     public void SaveLearning(string learningType, Dictionary<string, string> learningDict){
         dataIO.AddToDB(learningType, learningDict);
-        string learningID = dataIO.GetMostRecentValueFromTable(learningType);
+        string learningID = dataIO.GetMostRecentValueFromTable(typesToTables[learningType]);
         // update the list
         SaveOrUpdateLearningsList(learningType, FormatAsList(learningID, learningDict, headersDict[learningType]));
         // update dict
         learningsDict[learningType][learningID] = learningDict;
+    }
+
+    public string UniquenessCheck(string recordType, Dictionary<string, string> filters){
+        Dictionary<string, string> formattedFilters = new Dictionary<string, string>{};
+        foreach (KeyValuePair<string, string> pair in filters){
+            formattedFilters[pair.Key] = FormatStringForDBFilter(pair.Value);
+        }
+        Dictionary<string, Dictionary<string, string>> results = dataIO.GetFilteredDBResults(
+            recordType, formattedFilters, "=", true);
+        if(results.Keys.Count > 0){
+            return results.Keys.ToList()[0];
+        }
+        return "";
     }
 
     public List<string> GetLearningTypeList(string learningType){
@@ -100,9 +113,9 @@ public class DataManager{
         }
     }
 
-    public void SaveOrUpdateNotesList(string noteString, string index=""){
-        if(index != ""){
-            int indexInt = GetIntegerIndexFromIdentifier(Notes, index);
+    public void SaveOrUpdateNotesList(string noteString, string noteId=""){
+        if(noteId != ""){
+            int indexInt = GetIntegerIndexFromIdentifier(Notes, noteId);
             if(indexInt > -1){
                 Notes[indexInt] = noteString;
             }
@@ -124,10 +137,8 @@ public class DataManager{
         }
     }
 
-    public void SaveNote(Dictionary<string, string> noteMetadata, List<string> idComponents){
+    public void SaveNote(Dictionary<string, string> noteMetadata){
         // create id for dict based on type
-        string code = CreateNoteID(idComponents);
-        noteMetadata["ConnectedLearningCode"] = code;
         List<string> noteHeaders = headersDict["Note"];
 
         dataIO.AddToDB("Note", noteMetadata);
@@ -206,15 +217,20 @@ public class DataManager{
     }
 
     public void UpdateNote(string noteID, Dictionary<string, string> noteMetadata){
-        // update list
+        // update dict with any new values
+        foreach(KeyValuePair<string, string> pair in noteMetadata){
+            notesDict[noteID][pair.Key] = pair.Value;
+        }
+        // reformat dict as string and save to list
         List<string> headers = headersDict["Note"];
-        string noteString = FormatAsList(noteID, noteMetadata, headers);
-        // update the learnings lists
+        string noteString = FormatAsList(noteID, notesDict[noteID], headers);
         SaveOrUpdateNotesList(noteString, noteID);
-        // update dict
-        notesDict[noteID] = noteMetadata;
-        // save back to data store
-        dataIO.UpdateRecord(noteID, noteMetadata, "Note");
+        // save back to db
+        Dictionary<string, string> formattedDict = new Dictionary<string, string>{};
+        foreach(KeyValuePair<string, string> pair in noteMetadata){
+            formattedDict[pair.Key] = FormatStringForDBFilter(pair.Value);
+        }
+        dataIO.UpdateRecord(noteID, formattedDict, "Note");
     }
 
     public void DeleteLearning(string learningId, string learningType){
@@ -292,6 +308,9 @@ public class DataManager{
         bool result = int.TryParse(filterValue, out i);
         if(result){
             return filterValue;
+        }
+        if(filterValue.Contains("'")){
+            filterValue = filterValue.Replace("'", "''");
         }
         return $"'{filterValue}'";
     }
