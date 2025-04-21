@@ -1,4 +1,0 @@
-ID|||Name|||Description|||Status
-0|||Making coffee|||Learning to make a good cup of coffee without burning it|||To-Do
-1|||Sewing|||Learning how to do several simple stitches well|||To-Do
-2|||Knitting|||Learning how to knit socks and gloves!|||To-Do

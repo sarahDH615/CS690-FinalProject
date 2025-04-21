@@ -1,4 +1,6 @@
 namespace LearningTracker;
+
+using Microsoft.VisualBasic;
 using Spectre.Console;
 
 public class UserUI{
@@ -163,14 +165,16 @@ public class UserUI{
             if(action != "EXIT" && action != "BACK"){
                 // get list of those learnings
                 string learningId = LookupLearningByName(action);
-                // get learning record
-                Dictionary<string, string> learningRecord = learningManager.GetLearningByID(action, learningId);
-                // give option to change
-                string newStatus = GetStatusForDB();
-                // no need to actually change in the database if the status is already equal to the supposed update
-                if(learningRecord["Status"] != newStatus){
-                    learningRecord["Status"] = newStatus;
-                    learningManager.UpdateLearning(action, learningId, learningRecord);
+                if(learningId != ""){
+                    // get learning record
+                    Dictionary<string, string> learningRecord = learningManager.GetLearningByID(action, learningId);
+                    // give option to change
+                    string newStatus = GetStatusForDB();
+                    // no need to actually change in the database if the status is already equal to the supposed update
+                    Console.WriteLine(newStatus);
+                    if(learningRecord["Status"] != newStatus){
+                        learningManager.UpdateLearning(action, learningId, new Dictionary<string, string>{{"Status", newStatus}});
+                    }
                 }
             }
         }
@@ -184,36 +188,18 @@ public class UserUI{
         string keepViewing;
         AddToAndDisplayMenuHistory("View Notes Menu");
         do{
-            string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
-            string learningId = GetLearningInDialogue(learningType);
-            // show notes related to that learning
-            Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
-            if(notesInfo.Keys.Count == 0){
-                AnsiConsole.Write(new Markup($"[yellow]No notes associated with this {learningType}.{Environment.NewLine}[/]"));
+            string viewType = ChooseFromSelection("View flat list of notes or go through learning menu:", 
+                new List<string>{"View flat", "Go through learning menu"});
+            if(viewType == "View flat"){
+                PickFromFlatListOfNotesAndView();
             }
             else{
-                foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
-                    Console.WriteLine();
-                    var rule = new Rule($"[dim]Note ID: {entry.Key}[/]");
-                    rule.Justification = Justify.Center;
-                    AnsiConsole.Write(rule);
-                    AnsiConsole.Write(new Markup($"[bold underline]Note ID[/]: {entry.Key}{Environment.NewLine}"));
-                    foreach(KeyValuePair<string, string> subentry in entry.Value){
-                        if(subentry.Key == "Body"){
-                            AnsiConsole.Write(new Markup($"[bold]Body[/]:{Environment.NewLine}"));
-                            var panel = new Panel(subentry.Value);
-                            panel.Border = BoxBorder.Rounded;
-                            panel.Padding = new Padding(2, 2, 2, 2);
-                            AnsiConsole.Write(panel);
-                        }
-                        else{
-                            AnsiConsole.Write(new Markup($"[bold]{subentry.Key}[/]: {subentry.Value}{Environment.NewLine}"));
-                        }
-                    }
-                    Console.WriteLine();
+                string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
+                string learningId = GetLearningInDialogue(learningType);
+                if(learningId != ""){
+                    ShowNotes(learningType, learningId);
                 }
             }
-            
             keepViewing = ChooseFromSelection(
                 "Select View More to continue viewing notes, or BACK to exit View Notes Menu, or EXIT to exit LearningTracker:", 
                 new List<string>{"View More", "BACK", "EXIT"});
@@ -229,20 +215,24 @@ public class UserUI{
         string keepAdding;
         AddToAndDisplayMenuHistory("Add Notes Menu");
         do{
-            // enter note values
-            Dictionary<string, string> metadataDict = notesManager.GetCommonMetadataFieldsTextEntry();
-            foreach(var field in metadataDict.Keys){
-                string value = GetTextFromUser(field);
-                metadataDict[field] = value;
+            Dictionary<string, string> noteContent = MakeNoteContent();
+            string continueWithAddingNote = "No";
+            string existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+            while(existingNoteId != ""){
+                var remediationResults = RemediateDuplicateNote(noteContent, existingNoteId)[0];
+                existingNoteId = remediationResults.ID;
+                continueWithAddingNote = remediationResults.continueAdding;
+                noteContent = remediationResults.note;
             }
-            // choose learning type to connect the note to
-            Console.WriteLine("Note will be connected to a learning:");
-            string connectedLearningType = GetLearningType();
-            // get components for note id
-            List<string> noteIdComponents = GetNoteIdComponents(connectedLearningType);
             // save
-            notesManager.SaveNote(metadataDict, noteIdComponents);
-            
+            if(noteContent["ConnectedLearningCode"] != ""){
+                if(continueWithAddingNote == "Yes"){
+                    notesManager.SaveNote(noteContent);
+                }
+            }
+            else{
+                AnsiConsole.Write(new Markup($"[yellow]Note could not be made: not enough linkages to related learning.{Environment.NewLine}[/]"));
+            }
             keepAdding = ChooseFromSelection("Select Add More to continue adding notes, or BACK to exit Add Notes Menu, or EXIT to exit LearningTracker:", new List<string>{"Add More", "BACK", "EXIT"});
         }
         // BACK will go back to the previous while loop; EXIT will exit the script entirely
@@ -257,34 +247,26 @@ public class UserUI{
         AddToAndDisplayMenuHistory("Edit Notes Menu");
         do{
             // get note
-            // get all notes 
-            List<List<string>> notesStrings = new List<List<string>>();
-            Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes();
-            foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
-                notesStrings.Add(new List<string>{entry.Key, CreateNoteString(entry.Key, entry.Value["Name"])});
-            }
-            List<string> noteNames = notesStrings.Select(noteString => noteString[1]).ToList();
-            List<string> noteIds = notesStrings.Select(noteString => noteString[0]).ToList();
+            List<List<string>> noteContentLists = GetNotesForEditing();
+            List<string> noteNames = noteContentLists[0];
+            List<string> noteIds = noteContentLists[1];
             string chosenNoteName = ChooseFromSelection(
                 "Choose what note field you'd like to edit, or BACK to exit Edit Notes Menu, or EXIT to exit LearningTracker:", 
                 noteNames);
             string chosenNoteId = noteIds[noteNames.IndexOf(chosenNoteName)];
             Dictionary<string, string> note = notesManager.GetNoteByID(chosenNoteId);
             // choose which field to edit
-            string editField = ChooseFromSelection("Choose what field to edit:", note.Keys.ToList());
-            // overwrite or add on
-            string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
-            AnsiConsole.Write(new Markup($"[dim]Existing field content: {note[editField]}{Environment.NewLine}[/]"));
-            string newContent = GetTextFromUser(editField);
-            if(editKind == "Overwrite"){
-                note[editField] = newContent;
+            note = EditNoteField(note);
+            string existingNoteId = notesManager.CheckForExistingNameLearningCombo(note);
+            if(existingNoteId == ""){
+                // save back to data store
+                notesManager.UpdateNote(chosenNoteId, note);
             }
-            else {
-                note[editField]+=newContent;
+            else{
+                AnsiConsole.Write(
+                    new Markup(
+                        $"[yellow]Could not edit note as updated name/related learning combination conflicts with an existing note{Environment.NewLine}[/]"));
             }
-            AnsiConsole.Write(new Markup($"[dim]Updated {editField}: {note[editField]}{Environment.NewLine}[/]"));
-            // save back to data store
-            notesManager.UpdateNote(chosenNoteId, note);
             
             string editMore = ChooseFromSelection("Edit other notes?", new List<string>{"Yes", "No"});
             if(editMore == "No"){
@@ -302,25 +284,26 @@ public class UserUI{
         // find relevant note
         string learningType = ChooseFromSelection("Choose learning type:", new List<string>{"Skill", "Goal", "Milestone"});
         string learningId = GetLearningInDialogue(learningType);
-        // show notes related to that learning
-        Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
-        List<(string ID, string Name)> notesInfoSubset = notesInfo.Select(noteInfo => (noteInfo.Key, noteInfo.Value["Name"])).ToList();
-        List<string> noteIds = notesInfoSubset.Select(infoSubset => infoSubset.ID).ToList();
-        List<string> noteNames = notesInfoSubset.Select(infoSubset => infoSubset.Name).ToList();
-        if(noteNames.Count == 0){
-            AnsiConsole.Write(new Markup($"[yellow]No notes relate to that {learningType}{Environment.NewLine}[/]"));
-        }
-        else{
-            string selectedNoteName = ChooseFromSelection(
-                "Choose existing note to delete:", noteNames);
-            string selectedNoteId = noteIds[noteNames.IndexOf(selectedNoteName)];
-            string nextAction = ChooseFromSelection($"[red bold]Do you wish to proceed with deletion(s)?:[/]", new List<string>{"Yes", "No"});
-            if(nextAction == "Yes"){
-                // send to delete function
-                notesManager.DeleteNote(selectedNoteId);
+        if(learningId != ""){
+            // show notes related to that learning
+            Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
+            List<(string ID, string Name)> notesInfoSubset = notesInfo.Select(noteInfo => (noteInfo.Key, noteInfo.Value["Name"])).ToList();
+            List<string> noteIds = notesInfoSubset.Select(infoSubset => infoSubset.ID).ToList();
+            List<string> noteNames = notesInfoSubset.Select(infoSubset => infoSubset.Name).ToList();
+            if(noteNames.Count == 0){
+                AnsiConsole.Write(new Markup($"[yellow]No notes relate to that {learningType}{Environment.NewLine}[/]"));
+            }
+            else{
+                string selectedNoteName = ChooseFromSelection(
+                    "Choose existing note to delete:", noteNames);
+                string selectedNoteId = noteIds[noteNames.IndexOf(selectedNoteName)];
+                string nextAction = ChooseFromSelection($"[red bold]Do you wish to proceed with deletion(s)?:[/]", new List<string>{"Yes", "No"});
+                if(nextAction == "Yes"){
+                    // send to delete function
+                    notesManager.DeleteNote(selectedNoteId);
+                }
             }
         }
-        
         return "";
     }
     // ---- LEARNINGS ---- //
@@ -362,49 +345,7 @@ public class UserUI{
         return keepViewing;
     }
 
-    void DisplayDescendantsTree(Dictionary<string, List<string>> descendants){
-        // var root = new Tree("");
-        foreach(KeyValuePair<string, List<string>> descendant in descendants){
-            var root = new Tree(descendant.Key);
-            // var descNode = root.AddNode(descendant.Key);
-            if(descendant.Value.Count > 0){
-                foreach(string descendantChild in descendant.Value){
-                    root.AddNode(descendantChild);
-                    // descNode.AddNode(descendantChild);
-                }
-            }
-            // Render the tree
-            AnsiConsole.Write(root);
-        }
-    }
-
-    void DisplayDescendantsTable(Dictionary<string, List<string>> descendants, List<string> columns){
-        var table = new Table();
-        foreach(string column in columns){
-            table.AddColumn(column);
-        }
-        foreach(KeyValuePair<string, List<string>> descendant in descendants){
-            if(columns.Count == 2){
-                if(descendant.Value.Count > 0){
-                    table.AddRow(descendant.Key, descendant.Value[0]);
-                    for(int i=1; i < descendant.Value.Count; i++ ){
-                        table.AddRow("   ", descendant.Value[i]);
-                    }
-                }
-                else{
-                    table.AddRow(descendant.Key, "");
-                }
-            }
-            else{
-                table.AddRow(descendant.Key);
-            }
-        }
-        // Render the tree
-        AnsiConsole.Write(table);
-    }
-
     public string AddLearning(){
-
         string keepAdding;
         AddToAndDisplayMenuHistory("Add Learning Menu");
         do{
@@ -414,11 +355,11 @@ public class UserUI{
             if(learningType == "Goal" || learningType == "Milestone"){
                 string ancestorSkillId = LookupLearningByName("Skill");
                 if(learningType == "Goal"){
-                    metadataDict["parentID"] = ancestorSkillId;
+                    metadataDict["ParentID"] = ancestorSkillId;
                 }
                 else{
                     string ancestorGoalId = LookupLearningByName("Goal", ancestorSkillId);
-                    metadataDict["parentID"] = ancestorGoalId;
+                    metadataDict["ParentID"] = ancestorGoalId;
                 }
             }
             learningManager.SaveLearning(learningType, metadataDict);
@@ -445,7 +386,7 @@ public class UserUI{
                 Dictionary<string, string> learning = learningManager.GetLearningByID(learningType, learningId);
                 // choose which field to edit
                 string editField = ChooseFromSelection("Choose what field to edit:", learning.Keys.ToList());
-                Console.WriteLine($"Existing field content: {learning[editField]}"); // display existing to help them know whether they want to add/overwrite
+                AnsiConsole.Write(new Markup($"[dim]Existing field content: {learning[editField]}{Environment.NewLine}[/]")); // display existing to help them know whether they want to add/overwrite
                 // overwrite or add on
                 string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
                 string newContent = GetTextFromUser(editField);
@@ -562,7 +503,6 @@ public class UserUI{
             Console.WriteLine($"No summaries with status {filter}");
         }
         foreach(string summary in summaries){
-            // Console.WriteLine(summary);
             Tree summaryTree = MakeProgressTree(summary);
             AnsiConsole.Write(summaryTree);
         }
@@ -570,6 +510,59 @@ public class UserUI{
     }
 
     // ---- HELPER FUNCTIONS BELOW ---- //
+    public Dictionary<string, string> MakeNoteContent(){
+        // enter note values
+        Dictionary<string, string> metadataDict = notesManager.GetCommonMetadataFieldsTextEntry();
+        foreach(var field in metadataDict.Keys){
+            string value = GetTextFromUser(field);
+            metadataDict[field] = value;
+        }
+        // choose learning type to connect the note to
+        Console.WriteLine("Note will be connected to a learning:");
+        string connectedLearningType = GetLearningType();
+        // get components for note id
+        List<string> noteIdComponents = GetNoteIdComponents(connectedLearningType);
+        string connLearningId = notesManager.MakeConnectedLearningId(noteIdComponents);
+        metadataDict["ConnectedLearningCode"] = connLearningId;
+        return metadataDict;
+    }
+
+    
+
+    public void ShowNotes(string learningType, string learningId){
+        // show notes related to that learning
+        Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes(learningType, learningId);
+        if(notesInfo.Keys.Count == 0){
+            AnsiConsole.Write(new Markup($"[yellow]No notes associated with this {learningType}.{Environment.NewLine}[/]"));
+        }
+        else{
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
+                WriteNoteView(entry.Key, entry.Value);
+            }
+        }
+    }
+
+    public void WriteNoteView(string noteId, Dictionary<string, string> noteInfo){
+        Console.WriteLine();
+        var rule = new Rule($"[dim]Note ID: {noteId}[/]");
+        rule.Justification = Justify.Center;
+        AnsiConsole.Write(rule);
+        AnsiConsole.Write(new Markup($"[bold underline]Note ID[/]: {noteId}{Environment.NewLine}"));
+        foreach(KeyValuePair<string, string> subentry in noteInfo){
+            if(subentry.Key == "Body"){
+                AnsiConsole.Write(new Markup($"[bold]Body[/]:{Environment.NewLine}"));
+                var panel = new Panel(subentry.Value);
+                panel.Border = BoxBorder.Rounded;
+                panel.Padding = new Padding(2, 2, 2, 2);
+                AnsiConsole.Write(panel);
+            }
+            else{
+                AnsiConsole.Write(new Markup($"[bold]{subentry.Key}[/]: {subentry.Value}{Environment.NewLine}"));
+            }
+        }
+        Console.WriteLine();
+    }
+    
     public Tree MakeProgressTree(string progressSummary){
         List<string> summarySplit = progressSummary.Split(Environment.NewLine).ToList();
         var root = new Tree(FormatProgressStatusText(summarySplit[0]));
@@ -613,6 +606,47 @@ public class UserUI{
         AnsiConsole.Write(new Markup($"[bold dim]{title}[/][dim] {response}[/]"));
         Console.WriteLine();
         return response;
+    }
+
+    void DisplayDescendantsTree(Dictionary<string, List<string>> descendants){
+        // var root = new Tree("");
+        foreach(KeyValuePair<string, List<string>> descendant in descendants){
+            var root = new Tree(descendant.Key);
+            // var descNode = root.AddNode(descendant.Key);
+            if(descendant.Value.Count > 0){
+                foreach(string descendantChild in descendant.Value){
+                    root.AddNode(descendantChild);
+                    // descNode.AddNode(descendantChild);
+                }
+            }
+            // Render the tree
+            AnsiConsole.Write(root);
+        }
+    }
+
+    void DisplayDescendantsTable(Dictionary<string, List<string>> descendants, List<string> columns){
+        var table = new Table();
+        foreach(string column in columns){
+            table.AddColumn(column);
+        }
+        foreach(KeyValuePair<string, List<string>> descendant in descendants){
+            if(columns.Count == 2){
+                if(descendant.Value.Count > 0){
+                    table.AddRow(descendant.Key, descendant.Value[0]);
+                    for(int i=1; i < descendant.Value.Count; i++ ){
+                        table.AddRow("   ", descendant.Value[i]);
+                    }
+                }
+                else{
+                    table.AddRow(descendant.Key, "");
+                }
+            }
+            else{
+                table.AddRow(descendant.Key);
+            }
+        }
+        // Render the tree
+        AnsiConsole.Write(table);
     }
 
     public string GetTextFromUser(string fieldName){
@@ -659,7 +693,6 @@ public class UserUI{
         Dictionary<string, List<string>> learningInfo = learningManager.GetLearningIdsAndNames(learningType, filterId);
         if(learningInfo["Names"].Count == 0){
             AnsiConsole.Write(new Markup($"[yellow]No related {learningType}s{Environment.NewLine}[/]"));
-            // TO DO: allow re-entry
             return "";
         }
         string ancestorName = ChooseFromSelection($"Choose {learningType} name:", learningInfo["Names"]);
@@ -700,57 +733,178 @@ public class UserUI{
     }
 
     public List<string> GetNoteIdComponents(string learningType){
+        int expectedIdCount = notesManager.GetNumberOfExpectedRelatedLearningIds(learningType);
         List<string> components = new List<string>();
+        int successfulSearchCount = 0;
         if(learningType != "Skill"){
             AnsiConsole.Write(new Markup($"[bold red]Required![/] [bold]Name of skill related to {learningType}.[/]{Environment.NewLine}"));
         }
         string skillId = LookupLearningByName("Skill");
-        components.Add(skillId);
-        if(learningType == "Goal" || learningType == "Milestone"){
-            if(learningType == "Milestone"){
-                AnsiConsole.Write(new Markup($"[bold red]Required![/] [bold]Name of goal related to {learningType}.[/]{Environment.NewLine}"));
-            }
-            string goalId = LookupLearningByName("Goal", skillId);
-            components.Add(goalId);
-            if(learningType == "Milestone" && goalId != ""){
-                string milestoneId = LookupLearningByName("Milestone", goalId);
-                components.Add(milestoneId);
+        if(skillId != ""){
+            components.Add(skillId);
+            successfulSearchCount+=1;
+            if(learningType == "Goal" || learningType == "Milestone"){
+                if(learningType == "Milestone"){
+                    AnsiConsole.Write(new Markup($"[bold red]Required![/] [bold]Name of goal related to {learningType}.[/]{Environment.NewLine}"));
+                }
+                string goalId = LookupLearningByName("Goal", skillId);
+                if(goalId != ""){
+                    components.Add(goalId);
+                    successfulSearchCount+=1;
+                    if(learningType == "Milestone"){
+                        string milestoneId = LookupLearningByName("Milestone", goalId);
+                        if(milestoneId != ""){
+                            components.Add(milestoneId);
+                            successfulSearchCount+=1;
+                        }
+                    }
+                }
             }
         }
-        return components;
+        if(expectedIdCount == successfulSearchCount){
+            return components;
+        }
+        return new List<string>(); // if one or more searches failed
     }
 
-    public string CreateNoteString(string noteId, string noteName){
-        // get associated skills using id
-        string noteString = $"{noteName}";
-        List<string> noteIdSplit = noteId.Split("-").ToList();
-        List<string> noteStringComponents = new List<string>();
-        // skill
-        if(noteIdSplit[0] != "xx"){
-            noteStringComponents.Add(
-                $"related skill: {learningManager.GetLearningByID("Skill", noteIdSplit[0])["Name"]}");
-        }
-        if(noteIdSplit[1] != "xx"){
-            noteStringComponents.Add(
-                $"related goal: {learningManager.GetLearningByID("Goal", noteIdSplit[1])["Name"]}");
-        }
-        if(noteIdSplit[2] != "xx"){
-            noteStringComponents.Add(
-                $"related milestone: {learningManager.GetLearningByID("Milestone", noteIdSplit[2])["Name"]}");
-        }
-        noteString+=$" ({string.Join(", ", noteStringComponents)})";
-        return noteString;
-    }
+    
 
     public string GetStatusForDB(){
         string status = ChooseFromSelection(
             "Choose new status:", 
             new List<string>{"[green]Complete![/]", "[yellow]Return to To-Do[/]"});
-        if(status == "Complete!"){
+        if(status.Contains("Complete!")){
             return "Completed";
         }
         else{
             return "To-Do";
         }
+    }
+
+    public Dictionary<string, string> EditNoteField(Dictionary<string, string> noteContent){
+        string editField = ChooseFromSelection("Choose what field to edit:", noteContent.Keys.ToList());
+        if(editField == "ConnectedLearningCode"){
+            string connectedLearningType = GetLearningType();
+            // get components for note id
+            List<string> noteIdComponents = GetNoteIdComponents(connectedLearningType);
+            
+            if(noteIdComponents.Count > 0){
+                string connLearningId = notesManager.MakeConnectedLearningId(noteIdComponents);
+                noteContent["ConnectedLearningCode"] = connLearningId;
+            }
+        }
+        else{
+            // overwrite or add on
+            AnsiConsole.Write(new Markup($"[dim]Existing field content: {noteContent[editField]}{Environment.NewLine}[/]"));
+            string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
+            string newContent = GetTextFromUser(editField);
+            if(editKind == "Overwrite"){
+                noteContent[editField] = newContent;
+            }
+            else {
+                noteContent[editField]+=newContent;
+            }
+        }
+
+        AnsiConsole.Write(new Markup($"[dim]Updated {editField}: {noteContent[editField]}{Environment.NewLine}[/]"));
+        return noteContent;
+    }
+    public List<(string ID, string continueAdding, Dictionary<string, string> note)> RemediateDuplicateNote(Dictionary<string, string> noteContent, string existingNoteId){
+        AnsiConsole.Write(new Markup(($"[red]Cannot create note with Name '{noteContent["Name"]}' as it already exists{Environment.NewLine}[/]")));
+        string decision = ChooseFromSelection(
+            "How would you like to fix the issue?", 
+            new List<string>{"Overwrite existing note", "Edit existing note", "Change name of note being created"});
+        string continueWithAddingNote = "No"; // default
+        // overwrite: apply the fields for the new note into the old note
+        if(decision.StartsWith("Overwrite") || decision.StartsWith("Edit")){
+            Dictionary<string, string> existingNote = notesManager.GetNoteByID(existingNoteId);
+            string pasttense = "";
+            if(decision.StartsWith("Overwrite")){
+                foreach(KeyValuePair<string, string> pair in existingNote){
+                    existingNote[pair.Key] = noteContent[pair.Key];
+                }
+                pasttense = "overwritten";
+                return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+                    ("", continueWithAddingNote, noteContent)};
+            }
+            // edit: go to edit menu with the existing note's ID
+            else if(decision.StartsWith("Edit")){
+                existingNote = EditNoteField(existingNote);
+                pasttense = "edited";
+            }
+            notesManager.UpdateNote(existingNoteId, existingNote);
+            Console.Write($"Older note with same name {pasttense}.");
+            if(decision.StartsWith("Edit")){
+                continueWithAddingNote = ChooseFromSelection(
+                    "Would you like to continue with the note you started entering?", 
+                    new List<string>{"Yes", "No"});
+                if(continueWithAddingNote == "Yes"){
+                    Console.WriteLine($"Rechecking ability to save new note");
+                    existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+                    return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+                        (existingNoteId, continueWithAddingNote, noteContent)};
+                }
+                else{
+                    return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+                        ("", continueWithAddingNote, noteContent)};
+                }
+            }
+        }
+        // change: update the name for this note and save
+        else{
+            string newNoteName = GetTextFromUser("Name");
+            noteContent["Name"] = newNoteName;
+            Console.WriteLine($"Rechecking ability to save new note");
+            existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+            return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+                (existingNoteId, "Yes", noteContent)};
+        }
+        return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+            (existingNoteId, continueWithAddingNote, noteContent)};
+    }
+
+    public List<List<string>> GetNotesForEditing(){
+        List<List<string>> notesStrings = new List<List<string>>();
+        Dictionary<string, Dictionary<string, string>> notesInfo = notesManager.GetNotes();
+        foreach(KeyValuePair<string, Dictionary<string, string>> entry in notesInfo){
+            notesStrings.Add(new List<string>{entry.Key, CreateNoteStringForEditing(entry.Value["ConnectedLearningCode"], entry.Value["Name"])});
+        }
+        List<string> names = notesStrings.Select(noteString => noteString[1]).ToList();
+        List<string> ids = notesStrings.Select(noteString => noteString[0]).ToList();
+        return new List<List<string>>{names, ids};
+    }
+
+    public string CreateNoteStringForEditing(string relatedLearningId, string noteName){
+        // get associated skills using id
+        string noteString = $"{noteName}";
+        List<string> idSplit = relatedLearningId.Split("-").ToList();
+        List<string> noteStringComponents = new List<string>();
+        // skill
+        if(idSplit[0] != "xx"){
+            noteStringComponents.Add(
+                $"related skill: {learningManager.GetLearningByID("Skill", idSplit[0])["Name"]}");
+        }
+        if(idSplit[1] != "xx"){
+            noteStringComponents.Add(
+                $"related goal: {learningManager.GetLearningByID("Goal", idSplit[1])["Name"]}");
+        }
+        if(idSplit[2] != "xx"){
+            noteStringComponents.Add(
+                $"related milestone: {learningManager.GetLearningByID("Milestone", idSplit[2])["Name"]}");
+        }
+        noteString+=$" ({string.Join(", ", noteStringComponents)})";
+        return noteString;
+    }
+
+    public void PickFromFlatListOfNotesAndView(){
+        List<List<string>> noteContentLists = GetNotesForEditing();
+        List<string> noteNames = noteContentLists[0];
+        List<string> noteIds = noteContentLists[1];
+        string chosenNoteName = ChooseFromSelection(
+            "Choose what note field you'd like to edit, or BACK to exit Edit Notes Menu, or EXIT to exit LearningTracker:", 
+            noteNames);
+        string chosenNoteId = noteIds[noteNames.IndexOf(chosenNoteName)];
+        Dictionary<string, string> note = notesManager.GetNoteByID(chosenNoteId);
+        WriteNoteView(chosenNoteId, note);
     }
 }

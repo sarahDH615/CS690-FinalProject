@@ -1,5 +1,0 @@
-ID|||Name|||Description|||Body
-1-0-0-0|||Stitch types|||Types of stitches|||Backstitch, halfstitch, running
-0-xx-xx-0|||Coffee types|||types of coffee I've tried|||Arabica, Kenyan
-1-xx-xx-0|||Thoughts on needles|||Observations about sewing needles|||I think I prefer longer needles as I can pick up more stitches
-1-0-0-1|||Thoughts on backstitches|||Observations whilst sewing with a backstitch|||I don't think it is as slow as people often say
