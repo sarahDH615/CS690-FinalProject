@@ -79,37 +79,6 @@ public class LearningsManager{
         Dictionary<string, string> relatedLearnings = new Dictionary<string, string>{};
         
         foreach( KeyValuePair<string, Dictionary<string, string>> learning in lookupDict ){
-            if(learning.Value["parentID"] == learningID){
-                relatedLearnings[learning.Key] = learning.Value["Name"];
-            }
-        }
-        return relatedLearnings;
-    }
-
-    public Dictionary<string, List<string>> GetDescendantLearningNames(string learningType, string learningID){
-        Dictionary<string, List<string>> descendants = new Dictionary<string, List<string>>{};
-        if(learningType == "Skill"){
-            Dictionary<string, string> intermediateLevel = GetLearningNamesByParentID("Goal", learningID);
-            foreach(KeyValuePair<string, string> entry in intermediateLevel){
-                Dictionary<string, string> final = GetLearningNamesByParentID("Milestone", entry.Key);
-                descendants[entry.Value] = final.Values.ToList();
-            }
-        }
-        else{
-            Dictionary<string, string> final = GetLearningNamesByParentID("Milestone", learningID);
-            foreach(KeyValuePair<string, string> entry in final){
-                descendants[entry.Value] = new List<string>();
-            }
-        }
-        return descendants;
-    }
-
-    public Dictionary<string, string> GetLearningNamesByParentID(string learningType, string learningID){
-        // get relevant dict
-        Dictionary<string, Dictionary<string, string>> lookupDict = dataManager.learningsDict[learningType];
-        Dictionary<string, string> relatedLearnings = new Dictionary<string, string>{};
-        
-        foreach( KeyValuePair<string, Dictionary<string, string>> learning in lookupDict ){
             if(learning.Value["ParentID"] == learningID){
                 relatedLearnings[learning.Key] = learning.Value["Name"];
             }
