@@ -60,7 +60,7 @@ public class DataIO{
         CreateOrOpenSQLDB(); // create databases if they don't exist
     }
 
-    public void CreateSqlDatabases(string databaseName){
+    protected internal void CreateSqlDatabases(string databaseName){
         
         List<string> commandsList = new List<string>();
         if(databaseName == "learnings.db"){
@@ -87,7 +87,7 @@ public class DataIO{
         }
 
     }
-    public void CreateOrOpenSQLDB(){
+    protected internal void CreateOrOpenSQLDB(){
         if (!File.Exists("learnings.db"))
         {
             CreateSqlDatabases("learnings.db");
@@ -124,17 +124,14 @@ public class DataIO{
             };
             if(addType == "Skill"){
                 tableName = "skills";
-                // valuesCommand+=")";
             }
             else if(addType == "Goal"){
                 tableName = "goals";
-                // valuesCommand+=", @ParentID)";
                 valuesCommand+=", @ParentID";
                 values.Add(new List<string>{"@ParentID", data["ParentID"]});
             }
             else{
                 tableName = "milestones";
-                // valuesCommand+=", @ParentID)";
                 valuesCommand+=", @ParentID";
                 values.Add(new List<string>{"@ParentID", data["ParentID"]});
             }
@@ -162,7 +159,6 @@ public class DataIO{
         {
             Console.WriteLine(ex.Message);
         }
-
     }
 
     public Dictionary<string, Dictionary<string, string>> GetDataFromDB(string databaseName, string query, List<string> desiredValues){
@@ -184,7 +180,7 @@ public class DataIO{
         return resultsDict;
     }
 
-    public Dictionary<string, Dictionary<string, string>> GetResultsFromReader(SqliteDataReader dataReader, Dictionary<string, Dictionary<string, string>> dataResultsDict, List<string> valuesToExtract){
+    protected internal Dictionary<string, Dictionary<string, string>> GetResultsFromReader(SqliteDataReader dataReader, Dictionary<string, Dictionary<string, string>> dataResultsDict, List<string> valuesToExtract){
         if (dataReader.HasRows){
             while (dataReader.Read()) {
                 string id;
@@ -234,7 +230,10 @@ public class DataIO{
             return reference;
         }
         else{
-            return databaseNameDict[reference];
+            if(databaseNameDict.Keys.Contains(reference)){
+                return databaseNameDict[reference];
+            }
+            throw new ArgumentException($"No database name for reference {reference}."); 
         }
     }
 
@@ -301,7 +300,7 @@ public class DataIO{
         return GetDataFromDB(databaseName, selectAllString, desiredColumns);
     }
 
-    public (string dbName, List<string> columns) GetSetupForDBSearch(string tableName){
+    protected internal (string dbName, List<string> columns) GetSetupForDBSearch(string tableName){
         string dbName;
         List<string> columns = new List<string>();
         if(tableName == "notes"){
@@ -329,7 +328,7 @@ public class DataIO{
         return GetDataFromDB(databaseName, selectMostRecentString, desiredColumns).ToString()!;
     }
 
-    string GetTableName(string recordType){
+    protected internal string GetTableName(string recordType){
         if(new List<string>{"skills", "goals", "milestones", "notes"}.Contains(recordType)){
             return recordType;
         }
@@ -347,7 +346,7 @@ public class DataIO{
         }
     }
 
-    public List<string> GetFilterListForFilteredSearch(Dictionary<string, string> filters, string comparative="="){
+    protected internal List<string> GetFilterListForFilteredSearch(Dictionary<string, string> filters, string comparative="="){
         List<string> filterList = new List<string>();
         foreach(KeyValuePair<string, string> entry in filters){
             filterList.Add($"{entry.Key} {comparative} {entry.Value}");

@@ -32,37 +32,6 @@ public class DataManager{
         Goals = FormatAllAsList(learningsDict["Goal"], headersDict["Goal"]);
         Milestones = FormatAllAsList(learningsDict["Milestone"], headersDict["Milestone"]);
         Notes = FormatAllAsList(notesDict, headersDict["Note"]);
-
-        
-    }
-
-    public string CreateNoteID(List<string>idComponents, int componentLength=3){
-        List<string> components = new List<string>();
-        for(int segment = 0; segment < componentLength; segment++){
-            if(idComponents.Count > segment){
-                components.Add(idComponents[segment]);
-            }
-            else{
-                components.Add("xx");
-            }
-        }
-        return string.Join("-", components);
-    }
-
-    public Dictionary<string, Dictionary<string, string>> FormatAsDict(List<string> learnings, List<string> orderedHeaders){
-        Dictionary<string, Dictionary<string, string>> learningsDict = new Dictionary<string, Dictionary<string, string>>{};
-        foreach(string learning in learnings){
-            List<string> learningSplit = learning.Split("|||").ToList();
-            string learningID = learningSplit[0];
-            Dictionary<string, string> innerDict = new Dictionary<string, string>{};
-            if(learningSplit.Count == orderedHeaders.Count){
-                for (int index = 1; index < learningSplit.Count; index++){ // skipping the first index
-                    innerDict[orderedHeaders[index]] = learningSplit[index];
-                }
-            }
-            learningsDict[learningID] = innerDict;
-        }
-        return learningsDict;
     }
 
     public void SaveLearning(string learningType, Dictionary<string, string> learningDict){
@@ -176,29 +145,6 @@ public class DataManager{
         }
     }
 
-    // public List<Dictionary<string, Dictionary<string, string>>> GetFilteredLearningsAndDescendants(string learningType, Dictionary<string, string> filters){
-    //     List<Dictionary<string, Dictionary<string, string>>> learningsList = new List<Dictionary<string, Dictionary<string, string>>>{};
-    //     // get top level
-    //     Dictionary<string, Dictionary<string, string>> topLevelResults = GetFilteredLearnings(learningType, filters);
-    //     learningsList.Add(topLevelResults);
-
-    //     if(learningType == "Milestone"){
-    //         return learningsList;
-    //     }
-    //     // get second level if appropriate
-    //     Dictionary<string, Dictionary<string, string>> secondLevelResults = GetFilteredLearnings(learningType, filters);
-    //     learningsList.Add(secondLevelResults);
-
-    //     if(learningType == "Goal"){
-    //         return learningsList;
-    //     }
-    //     // get third level if appropriate
-    //     Dictionary<string, Dictionary<string, string>> thirdLevelResults = GetFilteredLearnings(learningType, filters);
-    //     learningsList.Add(thirdLevelResults);
-
-    //     return learningsList;
-    // }
-    
     public void UpdateLearning(string learningType, string learningID, Dictionary<string, string> learningMetadata){
         // update dict with any new values
         foreach(KeyValuePair<string, string> pair in learningMetadata){
