@@ -980,6 +980,7 @@ public class UserUI{
         else{
             existingContent = learningManager.GetLearningByID(type, existingId);
             existingContent = EditField(existingContent, type);
+            learningManager.UpdateLearning(type, existingContent);
         }
         Console.Write($"Older {type} with same name edited.");
         string continueWithAdding = ChooseFromSelection(
