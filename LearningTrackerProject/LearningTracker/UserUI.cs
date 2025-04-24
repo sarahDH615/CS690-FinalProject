@@ -256,7 +256,8 @@ public class UserUI{
             string chosenNoteId = noteIds[noteNames.IndexOf(chosenNoteName)];
             Dictionary<string, string> note = notesManager.GetNoteByID(chosenNoteId);
             // choose which field to edit
-            note = EditNoteField(note);
+            // note = EditNoteField(note);
+            note = EditField(note, "Note");
             string existingNoteId = notesManager.CheckForExistingNameLearningCombo(note);
             if(existingNoteId == ""){
                 // save back to data store
@@ -353,14 +354,23 @@ public class UserUI{
             Dictionary<string, string> metadataDict = GetMetadataFieldFromTextEntry(learningManager.GetCommonMetadataFieldsTextEntry());
             metadataDict = GetMetadataFieldFromSelection(metadataDict, learningManager.GetCommonMetadataFieldsSelection());
             if(learningType == "Goal" || learningType == "Milestone"){
-                string ancestorSkillId = LookupLearningByName("Skill");
-                if(learningType == "Goal"){
-                    metadataDict["ParentID"] = ancestorSkillId;
-                }
-                else{
-                    string ancestorGoalId = LookupLearningByName("Goal", ancestorSkillId);
-                    metadataDict["ParentID"] = ancestorGoalId;
-                }
+                metadataDict["ParentID"] = GetParentId(learningType);
+            }
+            // if(learningType == "Goal" || learningType == "Milestone"){
+            //     string ancestorSkillId = LookupLearningByName("Skill");
+            //     if(learningType == "Goal"){
+            //         metadataDict["ParentID"] = ancestorSkillId;
+            //     }
+            //     else{
+            //         string ancestorGoalId = LookupLearningByName("Goal", ancestorSkillId);
+            //         metadataDict["ParentID"] = ancestorGoalId;
+            //     }
+            // }
+            string existingLearningId = learningManager.CheckForExistingNameAndParentCombo(learningType, metadataDict);
+            while(existingLearningId != ""){
+                var remediationResults = RemediateDuplicateLearning(metadataDict, existingLearningId)[0];
+                existingLearningId = remediationResults.ID;
+                metadataDict = remediationResults.content;
             }
             learningManager.SaveLearning(learningType, metadataDict);
             keepAdding = ChooseFromSelection(
@@ -433,55 +443,60 @@ public class UserUI{
         // if there are any, check before deleting
         // learnings
         if(relatedLearnings.Count > 0){
-            if(learningType == "Skill"){
-                expectedDescendantTypes.Add("Goal");
-                expectedDescendantTypes.Add("Milestone");
-            }
-            else{
-                expectedDescendantTypes.Add("Milestone");
-            }
-            AnsiConsole.Write(
-                new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following {expectedDescendantTypes[0]}s:{Environment.NewLine}[/]"));
-            foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedLearnings[0]){
-                Console.WriteLine($"\t{entry.Value["Name"]}");
-            }
-            if(relatedLearnings.Count > 1){
-                AnsiConsole.Write(
-                    new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following Milestones:{Environment.NewLine}[/]"));
-                foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedLearnings[1]){
-                    Console.WriteLine($"\t{entry.Value["Name"]}");
-                }
-            }
+            // if(learningType == "Skill"){
+            //     expectedDescendantTypes.Add("Goal");
+            //     expectedDescendantTypes.Add("Milestone");
+            // }
+            // else{
+            //     expectedDescendantTypes.Add("Milestone");
+            // }
+            expectedDescendantTypes = learningManager.GetExpectedDescendantTypes(learningType);
+            // AnsiConsole.Write(
+            //     new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following {expectedDescendantTypes[0]}s:{Environment.NewLine}[/]"));
+            // foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedLearnings[0]){
+            //     Console.WriteLine($"\t{entry.Value["Name"]}");
+            // }
+            // if(relatedLearnings.Count > 1){
+            //     AnsiConsole.Write(
+            //         new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following Milestones:{Environment.NewLine}[/]"));
+            //     foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedLearnings[1]){
+            //         Console.WriteLine($"\t{entry.Value["Name"]}");
+            //     }
+            // }
+            DisplayLearningsAffectedByPotentialDelete(relatedLearnings, expectedDescendantTypes);
         }
         // notes
         if(relatedNotes.Keys.Count > 0){
-            AnsiConsole.Write(
-                new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following Notes:{Environment.NewLine}[/]"));
-            foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedNotes){
-                Console.WriteLine($"\t{entry.Value["Name"]}");
-            }
+            DisplayNotesAffectedByPotentialDelete(relatedNotes);
+            // AnsiConsole.Write(
+            //     new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following Notes:{Environment.NewLine}[/]"));
+            // foreach(KeyValuePair<string, Dictionary<string, string>> entry in relatedNotes){
+            //     Console.WriteLine($"\t{entry.Value["Name"]}");
+            // }
         }
         // confirm/deny deletes
         string nextAction = ChooseFromSelection($"Do you wish to proceed with deletion(s)?:", new List<string>{"Yes", "No"});
         if(nextAction == "Yes"){
-            // delete the learning itself
-            learningManager.DeleteLearning(learningId, learningType);
-            // delete the related learnings
-            if(relatedLearnings.Count > 0){
-                foreach(KeyValuePair<string, Dictionary<string, string>> learning in relatedLearnings[0]){
-                    learningManager.DeleteLearning(learning.Key, expectedDescendantTypes[0]);
-                }
-                if(relatedLearnings.Count > 1){
-                    foreach(KeyValuePair<string, Dictionary<string, string>> learning in relatedLearnings[1]){
-                        learningManager.DeleteLearning(learning.Key, expectedDescendantTypes[1]);
-                    }
-                }
-            }
+            // // delete the learning itself
+            // learningManager.DeleteLearning(learningId, learningType);
+            // // delete the related learnings
+            // if(relatedLearnings.Count > 0){
+            //     foreach(KeyValuePair<string, Dictionary<string, string>> learning in relatedLearnings[0]){
+            //         learningManager.DeleteLearning(learning.Key, expectedDescendantTypes[0]);
+            //     }
+            //     if(relatedLearnings.Count > 1){
+            //         foreach(KeyValuePair<string, Dictionary<string, string>> learning in relatedLearnings[1]){
+            //             learningManager.DeleteLearning(learning.Key, expectedDescendantTypes[1]);
+            //         }
+            //     }
+            // }
+            learningManager.DeleteLearningAndDescendants(learningId, learningType, relatedLearnings, expectedDescendantTypes);
             // delete related notes
             if(relatedNotes.Keys.Count > 0){
-                foreach(KeyValuePair<string, Dictionary<string, string>> note in relatedNotes){
-                    notesManager.DeleteNote(note.Key);
-                }
+                notesManager.DeleteMultipleNotes(relatedNotes.Keys.ToList());
+                // foreach(KeyValuePair<string, Dictionary<string, string>> note in relatedNotes){
+                //     notesManager.DeleteNote(note.Key);
+                // }
             }
         }
         menuHistory.RemoveAt(menuHistory.Count-1);
@@ -510,6 +525,40 @@ public class UserUI{
     }
 
     // ---- HELPER FUNCTIONS BELOW ---- //
+    public string GetParentId(string learningType){
+        string ancestorSkillId = LookupLearningByName("Skill");
+        if(learningType == "Goal"){
+            return ancestorSkillId;
+        }
+        else{
+            string ancestorGoalId = LookupLearningByName("Goal", ancestorSkillId);
+            return ancestorGoalId;
+        }
+    }
+
+    public void DisplayLearningsAffectedByPotentialDelete(List<Dictionary<string, Dictionary<string, string>>> affectedLearnings, List<string> affectedLearningTypes){
+        AnsiConsole.Write(
+            new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following {affectedLearningTypes[0]}s:{Environment.NewLine}[/]"));
+        foreach(KeyValuePair<string, Dictionary<string, string>> entry in affectedLearnings[0]){
+            Console.WriteLine($"\t{entry.Value["Name"]}");
+        }
+        if(affectedLearnings.Count > 1){
+            AnsiConsole.Write(
+                new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following Milestones:{Environment.NewLine}[/]"));
+            foreach(KeyValuePair<string, Dictionary<string, string>> entry in affectedLearnings[1]){
+                Console.WriteLine($"\t{entry.Value["Name"]}");
+            }
+        }
+    }
+
+    public void DisplayNotesAffectedByPotentialDelete(Dictionary<string, Dictionary<string, string>> affectedNotes){
+        AnsiConsole.Write(
+            new Markup($"[red bold]Warning![/][red] Deleting learning would delete the following Notes:{Environment.NewLine}[/]"));
+        foreach(KeyValuePair<string, Dictionary<string, string>> entry in affectedNotes){
+            Console.WriteLine($"\t{entry.Value["Name"]}");
+        }
+    }
+
     public Dictionary<string, string> MakeNoteContent(){
         // enter note values
         Dictionary<string, string> metadataDict = notesManager.GetCommonMetadataFieldsTextEntry();
@@ -526,8 +575,6 @@ public class UserUI{
         metadataDict["ConnectedLearningCode"] = connLearningId;
         return metadataDict;
     }
-
-    
 
     public void ShowNotes(string learningType, string learningId){
         // show notes related to that learning
@@ -767,8 +814,6 @@ public class UserUI{
         return new List<string>(); // if one or more searches failed
     }
 
-    
-
     public string GetStatusForDB(){
         string status = ChooseFromSelection(
             "Choose new status:", 
@@ -809,58 +854,194 @@ public class UserUI{
         AnsiConsole.Write(new Markup($"[dim]Updated {editField}: {noteContent[editField]}{Environment.NewLine}[/]"));
         return noteContent;
     }
+
     public List<(string ID, string continueAdding, Dictionary<string, string> note)> RemediateDuplicateNote(Dictionary<string, string> noteContent, string existingNoteId){
         AnsiConsole.Write(new Markup(($"[red]Cannot create note with Name '{noteContent["Name"]}' as it already exists{Environment.NewLine}[/]")));
         string decision = ChooseFromSelection(
             "How would you like to fix the issue?", 
             new List<string>{"Overwrite existing note", "Edit existing note", "Change name of note being created"});
-        string continueWithAddingNote = "No"; // default
+        // string continueWithAddingNote = "No"; // default
         // overwrite: apply the fields for the new note into the old note
-        if(decision.StartsWith("Overwrite") || decision.StartsWith("Edit")){
-            Dictionary<string, string> existingNote = notesManager.GetNoteByID(existingNoteId);
-            string pasttense = "";
-            if(decision.StartsWith("Overwrite")){
-                foreach(KeyValuePair<string, string> pair in existingNote){
-                    existingNote[pair.Key] = noteContent[pair.Key];
-                }
-                pasttense = "overwritten";
-                return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-                    ("", continueWithAddingNote, noteContent)};
+        if(decision.StartsWith("Overwrite")){
+            return RemediateDuplicateNoteOverwrite(existingNoteId, noteContent);
+        }
+        // edit: go to edit menu with the existing note's ID
+        else if(decision.StartsWith("Edit")){
+            return RemediateDuplicateNoteEdit(existingNoteId, noteContent);
+        }
+        // if(decision.StartsWith("Overwrite") || decision.StartsWith("Edit")){
+        //     Dictionary<string, string> existingNote = notesManager.GetNoteByID(existingNoteId);
+        //     string pasttense = "";
+        //     if(decision.StartsWith("Overwrite")){
+        //         foreach(KeyValuePair<string, string> pair in existingNote){
+        //             existingNote[pair.Key] = noteContent[pair.Key];
+        //         }
+        //         pasttense = "overwritten";
+        //         return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+        //             ("", continueWithAddingNote, noteContent)};
+        //     }
+        //     // edit: go to edit menu with the existing note's ID
+        //     else if(decision.StartsWith("Edit")){
+        //         existingNote = EditNoteField(existingNote);
+        //         pasttense = "edited";
+        //     }
+        //     notesManager.UpdateNote(existingNoteId, existingNote);
+        //     Console.Write($"Older note with same name {pasttense}.");
+        //     if(decision.StartsWith("Edit")){
+        //         continueWithAddingNote = ChooseFromSelection(
+        //             "Would you like to continue with the note you started entering?", 
+        //             new List<string>{"Yes", "No"});
+        //         if(continueWithAddingNote == "Yes"){
+        //             Console.WriteLine($"Rechecking ability to save new note");
+        //             existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+        //             return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+        //                 (existingNoteId, continueWithAddingNote, noteContent)};
+        //         }
+        //         else{
+        //             return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+        //                 ("", continueWithAddingNote, noteContent)};
+        //         }
+        //     }
+        // }
+        // change: update the name for this note and save
+        else{
+            // string newNoteName = GetTextFromUser("Name");
+            // noteContent["Name"] = newNoteName;
+            // Console.WriteLine($"Rechecking ability to save new note");
+            // existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+            // return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+            //     (existingNoteId, "Yes", noteContent)};
+            return RemediateDuplicateNoteChangeName(noteContent);
+        }
+        // return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+        //     (existingNoteId, continueWithAddingNote, noteContent)};
+    }
+
+    public void OutputDuplicateWarning(string type, string name, bool hasParent=false){
+        string warning;
+        string typeForWarning;
+        string insertIntoWarning = "";
+        if(type != "Note"){
+            if(hasParent){
+                insertIntoWarning = " under its parent learning";
             }
-            // edit: go to edit menu with the existing note's ID
-            else if(decision.StartsWith("Edit")){
-                existingNote = EditNoteField(existingNote);
-                pasttense = "edited";
-            }
-            notesManager.UpdateNote(existingNoteId, existingNote);
-            Console.Write($"Older note with same name {pasttense}.");
-            if(decision.StartsWith("Edit")){
-                continueWithAddingNote = ChooseFromSelection(
-                    "Would you like to continue with the note you started entering?", 
-                    new List<string>{"Yes", "No"});
-                if(continueWithAddingNote == "Yes"){
-                    Console.WriteLine($"Rechecking ability to save new note");
-                    existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
-                    return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-                        (existingNoteId, continueWithAddingNote, noteContent)};
-                }
-                else{
-                    return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-                        ("", continueWithAddingNote, noteContent)};
-                }
-            }
+            typeForWarning = "learning";
+        }
+        else{
+            typeForWarning = "note";
+        }
+        warning = $"Cannot create {typeForWarning} with Name '{name}' as it already exists{insertIntoWarning}.";
+        AnsiConsole.Write(new Markup(($"[red]{warning}{Environment.NewLine}[/]")));
+    }
+
+    public List<(string ID, string continueAdding, Dictionary<string, string> content)> RemediateDuplicateContent(Dictionary<string, string> contentMetadata, string existingId, string type){
+        OutputDuplicateWarning(type, contentMetadata["Name"], contentMetadata.Keys.Contains("ParentID"));
+        string decision = ChooseFromSelection(
+            "How would you like to fix the issue?", 
+            new List<string>{$"Overwrite existing {type}", $"Edit existing {type}", $"Change name of {type} being created"});
+        // overwrite: apply the fields for the new note into the old note
+        if(decision.StartsWith("Overwrite")){
+            return RemediateDuplicateContentOverwrite(existingId, contentMetadata, type);
+        }
+        // edit: go to edit menu with the existing note's ID
+        else if(decision.StartsWith("Edit")){
+            return RemediateDuplicateContentEdit(existingId, contentMetadata, type);
         }
         // change: update the name for this note and save
         else{
-            string newNoteName = GetTextFromUser("Name");
-            noteContent["Name"] = newNoteName;
-            Console.WriteLine($"Rechecking ability to save new note");
-            existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
-            return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-                (existingNoteId, "Yes", noteContent)};
+            return RemediateDuplicateContentChangeName(contentMetadata, type);
         }
+    }
+
+    public List<(string ID, string continueAdding, Dictionary<string, string> note)>RemediateDuplicateContentOverwrite(string existingId, Dictionary<string, string> content, string type){
+        Dictionary<string, string> existingContent = new Dictionary<string, string>{};
+        if(type == "Note"){
+            existingContent = notesManager.GetNoteByID(existingId);
+        }
+        else{
+            existingContent = learningManager.GetLearningByID(type, existingId);
+        }
+        
+        foreach(KeyValuePair<string, string> pair in existingContent){
+            existingContent[pair.Key] = content[pair.Key];
+        }
+        Console.Write($"Older {type} with same name overwritten.");
+        return new List<(string ID, string continueAdding, Dictionary<string, string> content)>{
+            ("", "No", content)};
+    }
+
+    public List<(string ID, string continueAdding, Dictionary<string, string> note)>RemediateDuplicateContentEdit(string existingId, Dictionary<string, string> content, string type){
+        Dictionary<string, string> existingContent = new Dictionary<string, string>{};
+        if(type == "Note"){
+            existingContent = notesManager.GetNoteByID(existingId);
+            existingContent = EditField(existingContent, type);
+            notesManager.UpdateNote(existingId, existingContent);
+        }
+        else{
+            existingContent = learningManager.GetLearningByID(type, existingId);
+            existingContent = EditField(existingContent, type);
+        }
+        Console.Write($"Older {type} with same name edited.");
+        string continueWithAdding = ChooseFromSelection(
+            $"Would you like to continue with the {type} you started entering?", 
+            new List<string>{"Yes", "No"});
+        if(continueWithAdding == "Yes"){
+            Console.WriteLine($"Rechecking ability to save new {type}");
+            if(type == "Note"){
+                existingId = notesManager.CheckForExistingNameLearningCombo(existingContent);
+            }
+            else{
+                existingId = learningManager.CheckForExistingNameAndParentCombo(type, existingContent);
+            }
+            return new List<(string ID, string continueAdding, Dictionary<string, string> content)>{
+                (existingId, continueWithAdding, existingContent)};
+        }
+        else{
+            return new List<(string ID, string continueAdding, Dictionary<string, string> content)>{
+                ("", continueWithAdding, existingContent)};
+        }
+    }
+
+    public Dictionary<string, string> EditField(Dictionary<string, string> content, string type){
+        string editField = ChooseFromSelection("Choose what field to edit:", content.Keys.ToList());
+        if(editField == "ParentID"){
+            content["ParentID"] = GetParentId(type);
+        }
+        else if(editField == "ConnectedLearningCode"){
+            string connectedLearningType = GetLearningType();
+            // get components for note id
+            List<string> noteIdComponents = GetNoteIdComponents(connectedLearningType);
+            
+            if(noteIdComponents.Count > 0){
+                string connLearningId = notesManager.MakeConnectedLearningId(noteIdComponents);
+                content["ConnectedLearningCode"] = connLearningId;
+            }
+        }
+        else{
+            // overwrite or add on
+            AnsiConsole.Write(new Markup($"[dim]Existing field content: {content[editField]}{Environment.NewLine}[/]"));
+            string editKind = ChooseFromSelection("Do you want to add on to or overwrite the field?", new List<string>{"Add", "Overwrite"});
+            string newContent = GetTextFromUser(editField);
+            if(editKind == "Overwrite"){
+                content[editField] = newContent;
+            }
+            else {
+                content[editField]+=newContent;
+            }
+        }
+
+        AnsiConsole.Write(new Markup($"[dim]Updated {editField}: {content[editField]}{Environment.NewLine}[/]"));
+        return content;
+    }
+
+
+    public List<(string ID, string continueAdding, Dictionary<string, string> note)>RemediateDuplicateNoteChangeName(Dictionary<string, string> noteContent){
+        string newNoteName = GetTextFromUser("Name");
+        noteContent["Name"] = newNoteName;
+        Console.WriteLine($"Rechecking ability to save new note");
+        string existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
         return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-            (existingNoteId, continueWithAddingNote, noteContent)};
+            (existingNoteId, "Yes", noteContent)};
     }
 
     public List<List<string>> GetNotesForEditing(){

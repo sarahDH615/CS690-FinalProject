@@ -55,16 +55,19 @@ public class NotesManager{
         dataManager.SaveNote(noteMetadata);
     }
 
+    protected internal string CreateMatchIdPattern(string ID, string relatedType){
+        string matchPattern = ID; // default for milestone
+        if(relatedType == "Goal"){
+            matchPattern += "-xx";
+        }
+        else if(relatedType == "Skill"){
+            matchPattern += "-xx-xx";
+        }
+        return matchPattern;
+    }
     public Dictionary<string, Dictionary<string, string>> GetNotes(string relatedLearningType="", string relatedLearningID=""){
         if(relatedLearningID !=""){
-            List<string> parts = new List<string>{"xx", "xx", "xx"};
-            string matchIdPattern = relatedLearningID; // default for milestone
-            if(relatedLearningType == "Goal"){
-                matchIdPattern += "-xx";
-            }
-            else if(relatedLearningType == "Skill"){
-                matchIdPattern += "-xx-xx";
-            }
+            string matchIdPattern = CreateMatchIdPattern(relatedLearningID, relatedLearningType); 
 
             List<Dictionary<string, Dictionary<string, string>>> relatedNotes = new List<Dictionary<string, Dictionary<string, string>>>{};
             var filteredNotes = dataManager.notesDict.Where(kvp => kvp.Value["ConnectedLearningCode"].EndsWith(matchIdPattern));
@@ -83,6 +86,12 @@ public class NotesManager{
 
     public void DeleteNote(string noteId){
         dataManager.DeleteNote(noteId);
+    }
+
+    public void DeleteMultipleNotes(List<string> noteIds){
+        foreach(string noteId in noteIds){
+            DeleteNote(noteId);
+        }
     }
 
     public void UpdateNote(string noteId, Dictionary<string, string> noteContent){

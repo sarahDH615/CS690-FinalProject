@@ -99,8 +99,10 @@ public class DataIO{
     }
 
     public void AddToDB(string addType, Dictionary<string, string> data){
-        string databaseName = "";
-        string tableName = "";
+        // string databaseName = "";
+        // string tableName = "";
+        string databaseName;
+        string tableName;
         string valuesCommand = "";
         List<List<string>> values = new List<List<string>>();
         if(addType == "Note"){

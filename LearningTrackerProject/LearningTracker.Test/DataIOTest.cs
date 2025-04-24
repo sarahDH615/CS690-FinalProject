@@ -5,6 +5,7 @@ using LearningTracker;
 public class DataIOTest
 {
     DataIO testDataIO = new DataIO();
+    DataIOHelper testHelper = new DataIOHelper();
 
     string testNoteType = "Note";
     string testNoteDatabaseName = "notes.db";
@@ -17,20 +18,6 @@ public class DataIOTest
     };
 
     public DataIOTest(){
-        // clear testing databases
-        using var connection = new SqliteConnection($@"Data Source=learnings.db");
-        connection.Open();
-        using var command = new SqliteCommand("DELETE FROM skills;", connection);
-        command.ExecuteNonQuery();
-        using var command2 = new SqliteCommand("DELETE FROM goals;", connection);
-        command.ExecuteNonQuery();
-        using var command3 = new SqliteCommand("DELETE FROM milestones;", connection);
-        command.ExecuteNonQuery();
-        using var connection2 = new SqliteConnection($@"Data Source=notes.db");
-        connection2.Open();
-        using var command4 = new SqliteCommand("DELETE FROM notes;", connection2);
-        command4.ExecuteNonQuery();
-
         
     }
     
@@ -51,6 +38,7 @@ public class DataIOTest
     [Fact]
     public void TestGetAllResultsFromTable()
     {
+        testHelper.ClearTestDB("notes.db", new List<string>{"notes"});
         testDataIO.AddToDB(testNoteType, testData);
         
         Dictionary<string, Dictionary<string, string>> res2 = testDataIO.GetAllResultsFromTable("notes");
@@ -75,5 +63,19 @@ public class DataIOTest
         Assert.Equal("skills", res2);
         Assert.Equal("goals", res3);
         Assert.Equal("notes", res4);
+    }
+
+}
+
+public class DataIOHelper{
+
+    public void ClearTestDB(string dbName, List<string>tableNames){
+        using var connection = new SqliteConnection($@"Data Source={dbName}");
+        connection.Open();
+
+        foreach(string tableName in tableNames){
+            using var command = new SqliteCommand($"DELETE FROM {tableName};", connection);
+            command.ExecuteNonQuery();
+        }
     }
 }

@@ -117,4 +117,48 @@ public class LearningsManager{
         dataManager.DeleteLearning(learningId, learningType);
     }
 
+    public void DeleteLearningAndDescendants(string learningId, string learningType, List<Dictionary<string, Dictionary<string, string>>> descendantLearnings, List<string> descendantLearningTypes){
+        // delete the learning itself
+        DeleteLearning(learningId, learningType);
+        // delete the related learnings
+        if(descendantLearnings.Count > 0){
+            foreach(KeyValuePair<string, Dictionary<string, string>> learning in descendantLearnings[0]){
+                DeleteLearning(learning.Key, descendantLearningTypes[0]);
+            }
+            if(descendantLearnings.Count > 1){
+                foreach(KeyValuePair<string, Dictionary<string, string>> learning in descendantLearnings[1]){
+                    DeleteLearning(learning.Key, descendantLearningTypes[1]);
+                }
+            }
+        }
+    }
+
+    public List<string> GetExpectedDescendantTypes(string learningType){
+        if(learningType == "Skill"){
+            return new List<string>{"Goal", "Milestone"};
+        }
+        else if(learningType == "Goal"){
+            return new List<string>{"Milestone"};
+        }
+        else{
+            return new List<string>();
+        }
+    }
+
+    public string CheckForExistingNameAndParentCombo(string learningType, Dictionary<string, string> learningInfo){
+        if(learningType == "Skill"){
+            return dataManager.UniquenessCheck(
+            learningType, 
+            new Dictionary<string, string>{
+                {"Name", learningInfo["Name"]}});
+        }
+        else{
+            return dataManager.UniquenessCheck(
+            learningType, 
+            new Dictionary<string, string>{
+                {"Name", learningInfo["Name"]}, 
+                {"ParentID", learningInfo["ParentID"]}});
+        }
+    }
+
 }
