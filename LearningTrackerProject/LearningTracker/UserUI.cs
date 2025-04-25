@@ -219,10 +219,12 @@ public class UserUI{
             string continueWithAddingNote = "No";
             string existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
             while(existingNoteId != ""){
-                var remediationResults = RemediateDuplicateNote(noteContent, existingNoteId)[0];
+                // var remediationResults = RemediateDuplicateNote(noteContent, existingNoteId)[0];
+                var remediationResults = RemediateDuplicateContent(noteContent, existingNoteId, "Note")[0];
                 existingNoteId = remediationResults.ID;
                 continueWithAddingNote = remediationResults.continueAdding;
-                noteContent = remediationResults.note;
+                // noteContent = remediationResults.note;
+                noteContent = remediationResults.content;
             }
             // save
             if(noteContent["ConnectedLearningCode"] != ""){
@@ -368,7 +370,8 @@ public class UserUI{
             // }
             string existingLearningId = learningManager.CheckForExistingNameAndParentCombo(learningType, metadataDict);
             while(existingLearningId != ""){
-                var remediationResults = RemediateDuplicateLearning(metadataDict, existingLearningId)[0];
+                // var remediationResults = RemediateDuplicateLearning(metadataDict, existingLearningId)[0];
+                var remediationResults = RemediateDuplicateContent(metadataDict, existingLearningId, learningType)[0];
                 existingLearningId = remediationResults.ID;
                 metadataDict = remediationResults.content;
             }
@@ -855,67 +858,67 @@ public class UserUI{
         return noteContent;
     }
 
-    public List<(string ID, string continueAdding, Dictionary<string, string> note)> RemediateDuplicateNote(Dictionary<string, string> noteContent, string existingNoteId){
-        AnsiConsole.Write(new Markup(($"[red]Cannot create note with Name '{noteContent["Name"]}' as it already exists{Environment.NewLine}[/]")));
-        string decision = ChooseFromSelection(
-            "How would you like to fix the issue?", 
-            new List<string>{"Overwrite existing note", "Edit existing note", "Change name of note being created"});
-        // string continueWithAddingNote = "No"; // default
-        // overwrite: apply the fields for the new note into the old note
-        if(decision.StartsWith("Overwrite")){
-            return RemediateDuplicateNoteOverwrite(existingNoteId, noteContent);
-        }
-        // edit: go to edit menu with the existing note's ID
-        else if(decision.StartsWith("Edit")){
-            return RemediateDuplicateNoteEdit(existingNoteId, noteContent);
-        }
-        // if(decision.StartsWith("Overwrite") || decision.StartsWith("Edit")){
-        //     Dictionary<string, string> existingNote = notesManager.GetNoteByID(existingNoteId);
-        //     string pasttense = "";
-        //     if(decision.StartsWith("Overwrite")){
-        //         foreach(KeyValuePair<string, string> pair in existingNote){
-        //             existingNote[pair.Key] = noteContent[pair.Key];
-        //         }
-        //         pasttense = "overwritten";
-        //         return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-        //             ("", continueWithAddingNote, noteContent)};
-        //     }
-        //     // edit: go to edit menu with the existing note's ID
-        //     else if(decision.StartsWith("Edit")){
-        //         existingNote = EditNoteField(existingNote);
-        //         pasttense = "edited";
-        //     }
-        //     notesManager.UpdateNote(existingNoteId, existingNote);
-        //     Console.Write($"Older note with same name {pasttense}.");
-        //     if(decision.StartsWith("Edit")){
-        //         continueWithAddingNote = ChooseFromSelection(
-        //             "Would you like to continue with the note you started entering?", 
-        //             new List<string>{"Yes", "No"});
-        //         if(continueWithAddingNote == "Yes"){
-        //             Console.WriteLine($"Rechecking ability to save new note");
-        //             existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
-        //             return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-        //                 (existingNoteId, continueWithAddingNote, noteContent)};
-        //         }
-        //         else{
-        //             return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-        //                 ("", continueWithAddingNote, noteContent)};
-        //         }
-        //     }
-        // }
-        // change: update the name for this note and save
-        else{
-            // string newNoteName = GetTextFromUser("Name");
-            // noteContent["Name"] = newNoteName;
-            // Console.WriteLine($"Rechecking ability to save new note");
-            // existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
-            // return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-            //     (existingNoteId, "Yes", noteContent)};
-            return RemediateDuplicateNoteChangeName(noteContent);
-        }
-        // return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-        //     (existingNoteId, continueWithAddingNote, noteContent)};
-    }
+    // public List<(string ID, string continueAdding, Dictionary<string, string> note)> RemediateDuplicateNote(Dictionary<string, string> noteContent, string existingNoteId){
+    //     AnsiConsole.Write(new Markup(($"[red]Cannot create note with Name '{noteContent["Name"]}' as it already exists{Environment.NewLine}[/]")));
+    //     string decision = ChooseFromSelection(
+    //         "How would you like to fix the issue?", 
+    //         new List<string>{"Overwrite existing note", "Edit existing note", "Change name of note being created"});
+    //     // string continueWithAddingNote = "No"; // default
+    //     // overwrite: apply the fields for the new note into the old note
+    //     if(decision.StartsWith("Overwrite")){
+    //         return RemediateDuplicateNoteOverwrite(existingNoteId, noteContent);
+    //     }
+    //     // edit: go to edit menu with the existing note's ID
+    //     else if(decision.StartsWith("Edit")){
+    //         return RemediateDuplicateNoteEdit(existingNoteId, noteContent);
+    //     }
+    //     // if(decision.StartsWith("Overwrite") || decision.StartsWith("Edit")){
+    //     //     Dictionary<string, string> existingNote = notesManager.GetNoteByID(existingNoteId);
+    //     //     string pasttense = "";
+    //     //     if(decision.StartsWith("Overwrite")){
+    //     //         foreach(KeyValuePair<string, string> pair in existingNote){
+    //     //             existingNote[pair.Key] = noteContent[pair.Key];
+    //     //         }
+    //     //         pasttense = "overwritten";
+    //     //         return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+    //     //             ("", continueWithAddingNote, noteContent)};
+    //     //     }
+    //     //     // edit: go to edit menu with the existing note's ID
+    //     //     else if(decision.StartsWith("Edit")){
+    //     //         existingNote = EditNoteField(existingNote);
+    //     //         pasttense = "edited";
+    //     //     }
+    //     //     notesManager.UpdateNote(existingNoteId, existingNote);
+    //     //     Console.Write($"Older note with same name {pasttense}.");
+    //     //     if(decision.StartsWith("Edit")){
+    //     //         continueWithAddingNote = ChooseFromSelection(
+    //     //             "Would you like to continue with the note you started entering?", 
+    //     //             new List<string>{"Yes", "No"});
+    //     //         if(continueWithAddingNote == "Yes"){
+    //     //             Console.WriteLine($"Rechecking ability to save new note");
+    //     //             existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+    //     //             return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+    //     //                 (existingNoteId, continueWithAddingNote, noteContent)};
+    //     //         }
+    //     //         else{
+    //     //             return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+    //     //                 ("", continueWithAddingNote, noteContent)};
+    //     //         }
+    //     //     }
+    //     // }
+    //     // change: update the name for this note and save
+    //     else{
+    //         // string newNoteName = GetTextFromUser("Name");
+    //         // noteContent["Name"] = newNoteName;
+    //         // Console.WriteLine($"Rechecking ability to save new note");
+    //         // existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+    //         // return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+    //         //     (existingNoteId, "Yes", noteContent)};
+    //         return RemediateDuplicateNoteChangeName(noteContent);
+    //     }
+    //     // return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+    //     //     (existingNoteId, continueWithAddingNote, noteContent)};
+    // }
 
     public void OutputDuplicateWarning(string type, string name, bool hasParent=false){
         string warning;
@@ -939,15 +942,15 @@ public class UserUI{
         string decision = ChooseFromSelection(
             "How would you like to fix the issue?", 
             new List<string>{$"Overwrite existing {type}", $"Edit existing {type}", $"Change name of {type} being created"});
-        // overwrite: apply the fields for the new note into the old note
+        // overwrite: apply the fields for the new content into the old content
         if(decision.StartsWith("Overwrite")){
             return RemediateDuplicateContentOverwrite(existingId, contentMetadata, type);
         }
-        // edit: go to edit menu with the existing note's ID
+        // edit: go to edit menu with the existing content's ID
         else if(decision.StartsWith("Edit")){
             return RemediateDuplicateContentEdit(existingId, contentMetadata, type);
         }
-        // change: update the name for this note and save
+        // change: update the name for this content and save
         else{
             return RemediateDuplicateContentChangeName(contentMetadata, type);
         }
@@ -980,7 +983,7 @@ public class UserUI{
         else{
             existingContent = learningManager.GetLearningByID(type, existingId);
             existingContent = EditField(existingContent, type);
-            learningManager.UpdateLearning(type, existingContent);
+            learningManager.UpdateLearning(type, existingId, existingContent);
         }
         Console.Write($"Older {type} with same name edited.");
         string continueWithAdding = ChooseFromSelection(
@@ -1035,15 +1038,29 @@ public class UserUI{
         return content;
     }
 
-
-    public List<(string ID, string continueAdding, Dictionary<string, string> note)>RemediateDuplicateNoteChangeName(Dictionary<string, string> noteContent){
-        string newNoteName = GetTextFromUser("Name");
-        noteContent["Name"] = newNoteName;
-        Console.WriteLine($"Rechecking ability to save new note");
-        string existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
-        return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
-            (existingNoteId, "Yes", noteContent)};
+    public List<(string ID, string continueAdding, Dictionary<string, string> content)>RemediateDuplicateContentChangeName(Dictionary<string, string> content, string type){
+        string newContentName = GetTextFromUser("Name");
+        content["Name"] = newContentName;
+        Console.WriteLine($"Rechecking ability to save new {type}");
+        string existingId;
+        if(type == "Note"){
+            existingId = notesManager.CheckForExistingNameLearningCombo(content);
+        }
+        else{
+            existingId = learningManager.CheckForExistingNameAndParentCombo(type, content);
+        }
+        return new List<(string ID, string continueAdding, Dictionary<string, string> content)>{
+            (existingId, "Yes", content)};
     }
+
+    // public List<(string ID, string continueAdding, Dictionary<string, string> note)>RemediateDuplicateNoteChangeName(Dictionary<string, string> noteContent){
+    //     string newNoteName = GetTextFromUser("Name");
+    //     noteContent["Name"] = newNoteName;
+    //     Console.WriteLine($"Rechecking ability to save new note");
+    //     string existingNoteId = notesManager.CheckForExistingNameLearningCombo(noteContent);
+    //     return new List<(string ID, string continueAdding, Dictionary<string, string> note)>{
+    //         (existingNoteId, "Yes", noteContent)};
+    // }
 
     public List<List<string>> GetNotesForEditing(){
         List<List<string>> notesStrings = new List<List<string>>();

@@ -2,7 +2,27 @@ namespace LearningTracker;
 using System.IO;
 using Microsoft.Data.Sqlite;
 
-public class DataIO{
+interface IDataIO<T> { 
+      
+    void AddToDB(string addType, Dictionary<string, string> data);
+
+    Dictionary<string, Dictionary<string, string>> GetDataFromDB(string databaseName, string query, List<string> desiredValues);
+
+    void UpdateRecord(string recordId, Dictionary<string, string> updatedFileComponents, string recordType, string databaseReference="");
+
+    void DeleteRecord(string recordType, string recordId, string databaseReference = "");
+
+    Dictionary<string, Dictionary<string, string>> GetAllResultsFromTable(string tableName);
+
+    Dictionary<string, Dictionary<string, string>> GetOneResultFromTableByID(string tableName, string recordId);
+
+    string GetMostRecentValueFromTable(string tableName);
+
+    Dictionary<string, Dictionary<string, string>> GetFilteredDBResults(string recordType, Dictionary<string, string> filters, string comparative="=", bool idOnly=false);
+
+} 
+
+public class DataIO : IDataIO<DataIO> {
 
     public Dictionary<string, string> databaseNameDict = new Dictionary<string, string>{};
     public Dictionary<string, string> createTablesCommandsDicts = new Dictionary<string, string>{};
@@ -59,34 +79,7 @@ public class DataIO{
         };
         CreateOrOpenSQLDB(); // create databases if they don't exist
     }
-
-    protected internal void CreateSqlDatabases(string databaseName){
-        
-        List<string> commandsList = new List<string>();
-        if(databaseName == "learnings.db"){
-            commandsList = new List<string>{
-                createTablesCommandsDicts["Skill"], createTablesCommandsDicts["Goal"], createTablesCommandsDicts["Milestone"]};
-        }
-        else if(databaseName == "notes.db"){
-            commandsList = new List<string>{createTablesCommandsDicts["Note"]};
-        }
-
-        try
-        {
-            using var connection = new SqliteConnection($@"Data Source={databaseName}");
-            connection.Open();
-
-            foreach(string commandString in commandsList){
-                using var command = new SqliteCommand(commandString, connection);
-                command.ExecuteNonQuery();
-            }
-        }
-        catch (SqliteException ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-
-    }
+    // function to run upon initialisation
     protected internal void CreateOrOpenSQLDB(){
         if (!File.Exists("learnings.db"))
         {
@@ -97,47 +90,14 @@ public class DataIO{
             CreateSqlDatabases("notes.db");
         }
     }
-
+    
     public void AddToDB(string addType, Dictionary<string, string> data){
-        // string databaseName = "";
-        // string tableName = "";
-        string databaseName;
-        string tableName;
-        string valuesCommand = "";
-        List<List<string>> values = new List<List<string>>();
-        if(addType == "Note"){
-            databaseName = "notes.db";
-            tableName = "notes";
-            valuesCommand+=$"@Name, @Description, @Body, @ConnectedLearningCode";
-            values = new List<List<string>>{
-                new List<string>{"@Name", data["Name"]},
-                new List<string>{"@Description", data["Description"]},
-                new List<string>{"@Body", data["Body"]},
-                new List<string>{"@ConnectedLearningCode", data["ConnectedLearningCode"]}
-            };
-        }
-        else{
-            databaseName = "learnings.db";
-            valuesCommand+=$"@Name, @Description, @Status";
-            values = new List<List<string>>{
-                new List<string>{"@Name", data["Name"]},
-                new List<string>{"@Description", data["Description"]},
-                new List<string>{"@Status", data["Status"]}
-            };
-            if(addType == "Skill"){
-                tableName = "skills";
-            }
-            else if(addType == "Goal"){
-                tableName = "goals";
-                valuesCommand+=", @ParentID";
-                values.Add(new List<string>{"@ParentID", data["ParentID"]});
-            }
-            else{
-                tableName = "milestones";
-                valuesCommand+=", @ParentID";
-                values.Add(new List<string>{"@ParentID", data["ParentID"]});
-            }
-        }
+        var databaseInfo = GetDatabaseInfo(addType);
+        string databaseName = databaseInfo.databaseName;
+        string tableName = databaseInfo.tableName;
+        var valuesInfo = GetAddCommandValues(tableName, data);
+        string valuesCommand = valuesInfo.valuesCommand;
+        List<List<string>> values = valuesInfo.values;
 
         string commandString = $"INSERT INTO {tableName} ({valuesCommand.Replace("@", "")}) VALUES ({valuesCommand})";
         
@@ -182,6 +142,153 @@ public class DataIO{
         return resultsDict;
     }
 
+    public void UpdateRecord(string recordId, Dictionary<string, string> updatedFileComponents, string recordType, string databaseReference=""){
+        var databaseInfo = GetDatabaseInfo(recordType);
+        string tableName = databaseInfo.tableName;
+        string databaseName = databaseInfo.databaseName;
+        
+        List<string> setStringList = new List<string>();
+        foreach(KeyValuePair<string, string> component in updatedFileComponents){
+            setStringList.Add($"{component.Key} = {component.Value}");
+        }
+        string setString = string.Join(", ", setStringList);
+
+        string updateCommandString = $@"
+            UPDATE {tableName}
+            SET {setString}
+            WHERE ID = {recordId};";
+        
+        ExecuteSQLCommand(databaseName, updateCommandString);
+    }
+
+    public void DeleteRecord(string recordType, string recordId, string databaseReference = ""){
+        var databaseInfo = GetDatabaseInfo(recordType);
+        string tableName = databaseInfo.tableName;
+        string databaseName = databaseInfo.databaseName;
+        string deleteCommandString = $@"DELETE FROM {tableName} WHERE ID = {recordId};";
+        ExecuteSQLCommand(databaseName, deleteCommandString);
+    }
+
+    public Dictionary<string, Dictionary<string, string>> GetAllResultsFromTable(string tableName){
+        var databaseInfo = GetDatabaseInfo(tableName);
+        string databaseName = databaseInfo.databaseName;
+        List<string> desiredColumns = databaseInfo.columns;
+        string selectAllString = $"SELECT * FROM {tableName};";
+        
+        return GetDataFromDB(databaseName, selectAllString, desiredColumns);
+    }
+
+    public Dictionary<string, Dictionary<string, string>> GetOneResultFromTableByID(string tableName, string recordId){
+        var databaseInfo = GetDatabaseInfo(tableName);
+        string databaseName = databaseInfo.databaseName;
+        List<string> desiredColumns = databaseInfo.columns;
+        
+        string selectAllString = $"SELECT * FROM {tableName} WHERE ID = {recordId};";
+        
+        return GetDataFromDB(databaseName, selectAllString, desiredColumns);
+    }
+
+    public string GetMostRecentValueFromTable(string tableName){
+        var databaseInfo = GetDatabaseInfo(tableName);
+        string databaseName = databaseInfo.databaseName;
+        List<string> desiredColumns = databaseInfo.columns;
+        string selectMostRecentString = $"SELECT MAX(ID) FROM {tableName};";
+        
+        return GetDataFromDB(databaseName, selectMostRecentString, desiredColumns).ToString()!;
+    }
+    
+    public Dictionary<string, Dictionary<string, string>> GetFilteredDBResults(string recordType, Dictionary<string, string> filters, string comparative="=", bool idOnly=false){
+        var databaseInfo = GetDatabaseInfo(recordType);
+        string tableName = databaseInfo.tableName;
+        string databaseName = databaseInfo.databaseName;
+        List<string> desiredColumns = databaseInfo.columns;
+
+        List<string> filterList = GetFilterListForFilteredSearch(filters, comparative);
+        string returns;
+        if(idOnly){
+            returns = "ID";
+        }
+        else{
+            returns = "*";
+        }
+
+        string selectFilteredResults = $"SELECT {returns} FROM {tableName} WHERE {string.Join(" AND ", filterList)};";
+        
+        return GetDataFromDB(databaseName, selectFilteredResults, desiredColumns);
+    }
+
+    // helpers
+    protected internal void CreateSqlDatabases(string databaseName){
+        List<string> commandsList = new List<string>();
+        if(databaseName == "learnings.db"){
+            commandsList = new List<string>{
+                createTablesCommandsDicts["Skill"], createTablesCommandsDicts["Goal"], createTablesCommandsDicts["Milestone"]};
+        }
+        else if(databaseName == "notes.db"){
+            commandsList = new List<string>{createTablesCommandsDicts["Note"]};
+        }
+
+        try{
+            using var connection = new SqliteConnection($@"Data Source={databaseName}");
+            connection.Open();
+
+            foreach(string commandString in commandsList){
+                using var command = new SqliteCommand(commandString, connection);
+                command.ExecuteNonQuery();
+            }
+        }
+        catch (SqliteException ex){
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    protected internal (string databaseName, string tableName, List<string> columns) GetDatabaseInfo(string databaseReference){
+        if(databaseReference.ToLower().Contains("note")){
+            return ("notes.db", "notes", new List<string>{"ID", "Name", "Description", "Body", "ConnectedLearningCode"});
+        }
+        else{
+            string dbName = "learnings.db";
+            List<string> columns = new List<string>{"ID", "Name", "Description", "Status"};
+            if(databaseReference.ToLower().Contains("skill")){
+                return (dbName, "skills", columns);
+            }
+            else{
+                columns.Add("ParentID");
+                if(databaseReference.ToLower().Contains("goal")){
+                    return (dbName, "goals", columns);
+                }
+                else{
+                    return (dbName, "milestones", columns);
+                }
+            }
+        }
+    }
+
+    protected internal (string valuesCommand, List<List<string>> values) GetAddCommandValues(string tableName, Dictionary<string, string> data){
+        if(tableName == "notes"){
+            return ($"@Name, @Description, @Body, @ConnectedLearningCode", 
+                new List<List<string>>{
+                    new List<string>{"@Name", data["Name"]},
+                    new List<string>{"@Description", data["Description"]},
+                    new List<string>{"@Body", data["Body"]},
+                    new List<string>{"@ConnectedLearningCode", data["ConnectedLearningCode"]}
+                });
+        }
+        else{
+            string valuesCommand=$"@Name, @Description, @Status";
+            List<List<string>> values = new List<List<string>>{
+                new List<string>{"@Name", data["Name"]},
+                new List<string>{"@Description", data["Description"]},
+                new List<string>{"@Status", data["Status"]}
+            };
+            if(tableName != "skills"){
+                valuesCommand+=", @ParentID";
+                values.Add(new List<string>{"@ParentID", data["ParentID"]});
+            }
+            return (valuesCommand, values);
+        }
+    }
+
     protected internal Dictionary<string, Dictionary<string, string>> GetResultsFromReader(SqliteDataReader dataReader, Dictionary<string, Dictionary<string, string>> dataResultsDict, List<string> valuesToExtract){
         if (dataReader.HasRows){
             while (dataReader.Read()) {
@@ -201,63 +308,7 @@ public class DataIO{
         return dataResultsDict;
     }
 
-    public void UpdateRecord(string recordId, Dictionary<string, string> updatedFileComponents, string recordType, string databaseReference=""){
-        
-        string tableName = GetTableName(recordType);
-        string databaseName;
-        if(databaseReference == ""){
-            var returns = GetSetupForDBSearch(tableName);
-            databaseName = returns.dbName;
-        }
-        else{
-            databaseName = GetDataBaseNameFromReference(databaseReference);
-        }
-        
-        List<string> setStringList = new List<string>();
-        foreach(KeyValuePair<string, string> component in updatedFileComponents){
-            setStringList.Add($"{component.Key} = {component.Value}");
-        }
-        string setString = string.Join(", ", setStringList);
-
-        string updateCommandString = $@"
-            UPDATE {tableName}
-            SET {setString}
-            WHERE ID = {recordId};";
-        
-        ExecuteSQLCommand(databaseName, updateCommandString);
-    }
-
-    public string GetDataBaseNameFromReference(string reference){
-        if(reference.EndsWith(".db")){
-            return reference;
-        }
-        else{
-            if(databaseNameDict.Keys.Contains(reference)){
-                return databaseNameDict[reference];
-            }
-            throw new ArgumentException($"No database name for reference {reference}."); 
-        }
-    }
-
-    public void DeleteRecord(string recordType, string recordId, string databaseReference = ""){
-        string databaseName;
-        if(databaseReference == ""){
-            if(recordType == "Note"){
-                databaseName = "notes.db";
-            }
-            else{
-                databaseName = "learnings.db";   
-            }
-        }
-        else{
-            databaseName = GetDataBaseNameFromReference(databaseReference);
-        }
-        string tableName = GetTableName(recordType);
-        string deleteCommandString = $@"DELETE FROM {tableName} WHERE ID = {recordId};";
-        ExecuteSQLCommand(databaseName, deleteCommandString);
-    }
-
-    public void ExecuteSQLCommand(string databaseName, string commandString){
+    protected internal void ExecuteSQLCommand(string databaseName, string commandString){
         try{
             using var connection = new SqliteConnection($@"Data Source={databaseName}");
             connection.Open();
@@ -270,109 +321,11 @@ public class DataIO{
         }
     }
 
-    public Dictionary<string, Dictionary<string, string>> GetAllResultsFromTable(string tableName){
-        string databaseName;
-        List<string> desiredColumns = new List<string>();
-        if(tableName == "notes"){
-            databaseName = "notes.db";
-            desiredColumns = new List<string>{"ID", "Name", "Description", "Body", "ConnectedLearningCode"};
-        }
-        else{
-            databaseName = "learnings.db";
-            if(tableName == "skills"){
-                desiredColumns = new List<string>{"ID", "Name", "Description", "Status"};
-            }
-            else{
-                desiredColumns = new List<string>{"ID", "Name", "Description", "Status", "ParentID"};
-            }
-        }
-        string selectAllString = $"SELECT * FROM {tableName};";
-        
-        return GetDataFromDB(databaseName, selectAllString, desiredColumns);
-    }
-
-    public Dictionary<string, Dictionary<string, string>> GetOneResultFromTableByID(string tableName, string recordId){
-        string databaseName;
-        List<string> desiredColumns = new List<string>();
-        var setupVars = GetSetupForDBSearch(tableName);
-        databaseName = setupVars.dbName;
-        desiredColumns = setupVars.columns;
-        string selectAllString = $"SELECT * FROM {tableName} WHERE ID = {recordId};";
-        
-        return GetDataFromDB(databaseName, selectAllString, desiredColumns);
-    }
-
-    protected internal (string dbName, List<string> columns) GetSetupForDBSearch(string tableName){
-        string dbName;
-        List<string> columns = new List<string>();
-        if(tableName == "notes"){
-            dbName = "notes.db";
-            columns = new List<string>{"ID", "Name", "Description", "Body", "ConnectedLearningCode"};
-        }
-        else{
-            dbName = "learnings.db";
-            if(tableName == "skills"){
-                columns = new List<string>{"ID", "Name", "Description", "Status"};
-            }
-            else{
-                columns = new List<string>{"ID", "Name", "Description", "Status", "ParentID"};
-            }
-        }
-        return (dbName, columns);
-    }
-
-    public string GetMostRecentValueFromTable(string tableName){
-        var setupVars = GetSetupForDBSearch(tableName);
-        string databaseName = setupVars.dbName;
-        List<string> desiredColumns = setupVars.columns;
-        string selectMostRecentString = $"SELECT MAX(ID) FROM {tableName};";
-        
-        return GetDataFromDB(databaseName, selectMostRecentString, desiredColumns).ToString()!;
-    }
-
-    protected internal string GetTableName(string recordType){
-        if(new List<string>{"skills", "goals", "milestones", "notes"}.Contains(recordType)){
-            return recordType;
-        }
-        else if(recordType == "Skill"){
-            return "skills";
-        }
-        else if(recordType == "Goal"){
-            return "goals";
-        }
-        else if(recordType == "Milestone"){
-            return "milestones";
-        }
-        else{
-            return "notes";
-        }
-    }
-
     protected internal List<string> GetFilterListForFilteredSearch(Dictionary<string, string> filters, string comparative="="){
         List<string> filterList = new List<string>();
         foreach(KeyValuePair<string, string> entry in filters){
             filterList.Add($"{entry.Key} {comparative} {entry.Value}");
         }
         return filterList;
-    }
-
-    public Dictionary<string, Dictionary<string, string>> GetFilteredDBResults(string recordType, Dictionary<string, string> filters, string comparative="=", bool idOnly=false){
-        string tableName = GetTableName(recordType);
-        var setupVars = GetSetupForDBSearch(tableName);
-        string databaseName = setupVars.dbName;
-        List<string> desiredColumns = setupVars.columns;
-
-        List<string> filterList = GetFilterListForFilteredSearch(filters, comparative);
-        string returns;
-        if(idOnly){
-            returns = "ID";
-        }
-        else{
-            returns = "*";
-        }
-
-        string selectFilteredResults = $"SELECT {returns} FROM {tableName} WHERE {string.Join(" AND ", filterList)};";
-        
-        return GetDataFromDB(databaseName, selectFilteredResults, desiredColumns);
     }
 }
